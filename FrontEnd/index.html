@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manajemen Risiko Kota Tegal</title>
+  <style>
+    #boot-loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: #eef2fb;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #64748b;
+      font-size: 0.86rem;
+    }
+
+    #boot-loader .ring {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 3px solid #e6eaf4;
+      border-top-color: #4f46e5;
+      border-right-color: #8b5cf6;
+      animation: boot-spin 0.75s linear infinite;
+    }
+
+    #boot-loader .brand {
+      font-weight: 700;
+      color: #17203a;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+    }
+
+    @keyframes boot-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #boot-loader .ring {
+        animation-duration: 2.2s;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="boot-loader">
+      <span class="ring"></span>
+      <span class="brand">Manajemen Risiko</span>
+      <span>Menyiapkan aplikasi…</span>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
