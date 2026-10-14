@@ -20,6 +20,7 @@ from docx.shared import Cm, Pt, RGBColor
 from docxtpl import DocxTemplate
 from sqlmodel import Session, select
 
+from app.services.rtp import pengendalian_text, rencana_text
 from app.models import (
     Infokom,
     KonteksOperasionalOpd,
@@ -55,9 +56,9 @@ FORM_LABELS = {
     "f3c": ("Lampiran 5", "Form 3.c", "KERTAS KERJA IDENTIFIKASI RISIKO OPERASIONAL OPD"),
     "f4": ("Lampiran 5", "Form 4", "KERTAS KERJA HASIL ANALISIS RISIKO"),
     "f5": ("Lampiran 5", "Form 5", "KERTAS KERJA DAFTAR RISIKO PRIORITAS"),
-    "f7": ("Lampiran 5", "Form 7", "PENILAIAN ATAS KEGIATAN PENGENDALIAN YANG ADA DAN MASIH DIBUTUHKAN\n(RTP ATAS HASIL IDENTIFIKASI RISIKO)"),
-    "f8": ("Lampiran 5", "Form 8", "RENCANA DAN REALISASI ATAS PENGKOMUNIKASIAN ATAS KEGIATAN PENGENDALIAN YANG DIBANGUN"),
-    "f9": ("Lampiran 5", "Form 9", "RENCANA DAN REALISASI PEMANTAUAN ATAS KEGIATAN PENGENDALIAN INTERN YANG DIBUTUHKAN"),
+    "f7": ("Lampiran Perwal 1/2026", "Form 10 (Perwal) / Form 7 (aplikasi)", "PENILAIAN ATAS KEGIATAN PENGENDALIAN YANG ADA DAN MASIH DIBUTUHKAN\n(RTP ATAS HASIL IDENTIFIKASI RISIKO)"),
+    "f8": ("Lampiran Perwal 1/2026", "Form 11 (Perwal) / Form 8 (aplikasi)", "RENCANA DAN REALISASI ATAS PENGKOMUNIKASIAN ATAS KEGIATAN PENGENDALIAN YANG DIBANGUN"),
+    "f9": ("Lampiran Perwal 1/2026", "Form 12 (Perwal) / Form 9 (aplikasi)", "RENCANA DAN REALISASI PEMANTAUAN ATAS KEGIATAN PENGENDALIAN INTERN YANG DIBUTUHKAN"),
     "f10": ("Lampiran 5", "Form 10", "PENCATATAN KEJADIAN RISIKO (RISK EVENT) DAN PELAKSANAAN RTP"),
 }
 
@@ -771,7 +772,7 @@ def append_form_7(doc, ctx: DocxContext):
     tbl.style = "Table Grid"
 
     hdr = tbl.rows[0]
-    cols = ["No", "Risiko Prioritas", "Kode Risiko", "Pemilik", "Pengendalian yang Ada", "Celah Pengendalian", "Rencana Tindak Pengendalian", "Target Waktu"]
+    cols = ["No", "Risiko Prioritas", "Kode Risiko", "Pemilik", "Status / Pengendalian / Bukti", "Celah Pengendalian", "Respon Risiko / Rencana Tindak", "Target Waktu"]
     for i, h in enumerate(cols):
         _cell_p(hdr.cells[i], h, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
         _shade(hdr.cells[i])
@@ -784,9 +785,9 @@ def append_form_7(doc, ctx: DocxContext):
         _cell_p(r.cells[1], it.get("uraian_risiko") or "")
         _cell_p(r.cells[2], it.get("kode_risiko") or "", align=WD_ALIGN_PARAGRAPH.CENTER)
         _cell_p(r.cells[3], it.get("pemilik_risiko") or "")
-        _cell_p(r.cells[4], rtp.get("pengendalian_ada") or "")
+        _cell_p(r.cells[4], pengendalian_text(rtp))
         _cell_p(r.cells[5], rtp.get("celah_pengendalian") or "")
-        _cell_p(r.cells[6], rtp.get("rencana_tindak") or "")
+        _cell_p(r.cells[6], rencana_text(rtp))
         _cell_p(r.cells[7], rtp.get("target_waktu") or "", align=WD_ALIGN_PARAGRAPH.CENTER)
         for c in r.cells:
             _set_cell_padding(c)

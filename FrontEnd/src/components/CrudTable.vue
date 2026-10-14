@@ -46,6 +46,11 @@ function onSelectChange(c) {
   props.columns.forEach((x) => {
     if (x.dependsOn === c.field) editing.value[x.field] = null
   })
+  if (c.onSelect) {
+    const opts = dynOptions.value[c.field] || c.options || []
+    const selectedOpt = opts.find((o) => o.value === editing.value[c.field])
+    c.onSelect(editing.value, selectedOpt)
+  }
 }
 
 async function loadDynOptions() {
@@ -167,12 +172,21 @@ onMounted(load)
             optionValue="value"
             :editable="c.editable"
             filter
+            :filterFields="['label', 'sublabel', 'value']"
             showClear
             :placeholder="c.placeholder || 'Pilih…'"
             :disabled="c.dependsOn && !editing[c.dependsOn]"
             style="width: 100%"
             @change="onSelectChange(c)"
-          />
+          >
+            <template #option="{ option }">
+              <div v-if="option.sublabel" style="display: flex; flex-direction: column; gap: 2px">
+                <span style="font-weight: 500; line-height: 1.3">{{ option.label }}</span>
+                <small class="muted" style="font-size: 0.78rem; opacity: 0.85">{{ option.sublabel }}</small>
+              </div>
+              <span v-else>{{ option.label }}</span>
+            </template>
+          </Select>
           <InputText v-else v-model="editing[c.field]" style="width: 100%" />
         </div>
       </div>

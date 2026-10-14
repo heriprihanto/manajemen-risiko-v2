@@ -18,6 +18,8 @@ from app.routers import (
     rekapitulasi,
     risiko,
     survei,
+    tata_kelola,
+    selera,
 )
 
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -49,6 +51,8 @@ app.include_router(monitoring.router, prefix=API, dependencies=scoped)
 app.include_router(dashboard.router, prefix=API, dependencies=scoped)
 app.include_router(laporan.router, prefix=API, dependencies=scoped)
 app.include_router(rekapitulasi.router, prefix=API, dependencies=scoped)
+app.include_router(tata_kelola.router, prefix=API, dependencies=[UserDep])
+app.include_router(selera.router, prefix=API, dependencies=[UserDep])
 
 
 @app.on_event("startup")

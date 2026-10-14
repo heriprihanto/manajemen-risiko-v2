@@ -4,7 +4,7 @@ defineProps({ data: { type: Array, default: () => [] }, opdName: String, tahun: 
 
 <template>
   <section class="report-section">
-    <div class="report-formno">Form 8</div>
+    <div class="report-formno">Form 11 Perwal / Form 8 aplikasi</div>
     <div class="report-title">Rencana & Realisasi Pengkomunikasian Pengendalian</div>
     <div class="report-subtitle">{{ opdName }} — Tahun {{ tahun }}</div>
     <table class="rpt">

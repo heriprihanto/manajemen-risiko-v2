@@ -1,6 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
+  { path: '/selera-risiko', name: 'selera-risiko', component: () => import('@/views/SeleraRisiko.vue'), meta: { title: 'Selera Risiko' } },
+  { path: '/tata-kelola', name: 'tata-kelola', component: () => import('@/views/TataKelola.vue'), meta: { title: 'Tata Kelola Risiko' } },
+  { path: '/risiko/:id/detail', name: 'detail-risiko', component: () => import('@/views/DetailRisiko.vue'), meta: { title: 'Detail Pengelolaan Risiko' } },
+  { path: '/laporan-berkala/:id', name: 'laporan-berkala', component: () => import('@/views/LaporanBerkala.vue'), meta: { title: 'Laporan Berkala Risiko' } },
   { path: '/', redirect: '/dashboard' },
   { path: '/login', name: 'login', component: () => import('@/views/Login.vue'), meta: { title: 'Login', public: true, guestOnly: true } },
   { path: '/survei', name: 'survei', component: () => import('@/views/Survei.vue'), meta: { title: 'Survei CEE', public: true } },
@@ -36,10 +40,9 @@ const routes = [
   { path: '/form4', name: 'form4', component: () => import('@/views/Form4.vue'), meta: { title: 'Form 4 — Analisis Risiko' } },
   { path: '/matriks', name: 'matriks', component: () => import('@/views/Matriks.vue'), meta: { title: 'Matriks Risiko' } },
   { path: '/form5', name: 'form5', component: () => import('@/views/Form5.vue'), meta: { title: 'Form 5 — Daftar Risiko Prioritas' } },
-  { path: '/form7', name: 'form7', component: () => import('@/views/Form7.vue'), meta: { title: 'Form 7 — RTP atas Risiko' } },
-
-  { path: '/form8', name: 'form8', component: () => import('@/views/Form8.vue'), meta: { title: 'Form 8 — Informasi & Komunikasi' } },
-  { path: '/form9', name: 'form9', component: () => import('@/views/Form9.vue'), meta: { title: 'Form 9 — Rencana Pemantauan PI' } },
+  { path: '/form7', name: 'form7', component: () => import('@/views/Form7.vue'), meta: { title: 'Respon Risiko (RTP)' } },
+  { path: '/form8', redirect: '/form7' },
+  { path: '/form9', redirect: '/form7' },
   { path: '/form10', name: 'form10', component: () => import('@/views/Form10.vue'), meta: { title: 'Form 10 — Monitoring Risk Event & RTP' } },
   { path: '/approval-kejadian', name: 'approval-kejadian', component: () => import('@/views/ApprovalKejadian.vue'), meta: { title: 'Approval Kejadian Risiko' } },
 

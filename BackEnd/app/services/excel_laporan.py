@@ -10,6 +10,7 @@ from io import BytesIO
 from openpyxl import Workbook
 from sqlmodel import Session, select
 
+from app.services.rtp import pengendalian_text, rencana_text
 from app.models import (
     Infokom,
     KonteksOperasionalOpd,
@@ -460,16 +461,16 @@ def build_f5(ctx: Ctx, wb: Workbook):
 def build_f7(ctx: Ctx, wb: Workbook):
     rows = risiko.list_rtp(ctx.opd_id, ctx.tahun, ctx.s) or []
     sh = Sheet(wb.create_sheet("Form 7"), [5, 40, 12, 20, 34, 30, 40, 13])
-    ctx.head(sh, "Form 7",
+    ctx.head(sh, "Form 10 Perwal / Form 7 aplikasi",
              "Penilaian Kegiatan Pengendalian (RTP atas Hasil Identifikasi Risiko)")
     sh.header(["No", "Risiko Prioritas", "Kode", "Pemilik",
-               "Pengendalian yang Ada", "Celah", "Rencana Tindak Pengendalian",
+               "Status / Pengendalian / Bukti", "Celah", "Respon Risiko / Rencana Tindak",
                "Target"])
     for i, it in enumerate(rows, start=1):
         rtp = it.get("rtp") or {}
         sh.data([i, it.get("uraian_risiko"), it.get("kode_risiko"),
-                 it.get("pemilik_risiko"), rtp.get("pengendalian_ada"),
-                 rtp.get("celah_pengendalian"), rtp.get("rencana_tindak"),
+                 it.get("pemilik_risiko"), pengendalian_text(rtp),
+                 rtp.get("celah_pengendalian"), rencana_text(rtp),
                  rtp.get("target_waktu")], center={1})
     if not rows:
         sh.empty_row("Belum ada risiko prioritas")
@@ -483,7 +484,7 @@ def build_f8(ctx: Ctx, wb: Workbook):
         .order_by(Infokom.no_urut)
     ).all()
     sh = Sheet(wb.create_sheet("Form 8"), [5, 44, 26, 24, 24, 13, 13])
-    ctx.head(sh, "Form 8", "Rencana & Realisasi Pengkomunikasian Pengendalian")
+    ctx.head(sh, "Form 11 Perwal / Form 8 aplikasi", "Rencana & Realisasi Pengkomunikasian Pengendalian")
     sh.header(["No", "Kegiatan Pengendalian", "Media/Bentuk", "Penyedia",
                "Penerima", "Rencana", "Realisasi"])
     for i, r in enumerate(rows, start=1):
@@ -513,7 +514,7 @@ def build_f9(ctx: Ctx, wb: Workbook):
         .order_by(MonitoringPi.no_urut)
     ).all()
     sh = Sheet(wb.create_sheet("Form 9"), [5, 46, 34, 26, 13, 13])
-    ctx.head(sh, "Form 9",
+    ctx.head(sh, "Form 12 Perwal / Form 9 aplikasi",
              "Rencana & Realisasi Pemantauan atas Kegiatan Pengendalian")
     sh.header(["No", "Kegiatan Pengendalian", "Metode Pemantauan",
                "Penanggung Jawab", "Rencana", "Realisasi"])

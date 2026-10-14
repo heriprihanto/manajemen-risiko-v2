@@ -1,7 +1,6 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { watch, ref } from 'vue'
 import Select from 'primevue/select'
-import Checkbox from 'primevue/checkbox'
 import { useToast } from 'primevue/usetoast'
 import api from '@/api'
 import { useContextStore } from '@/stores/context'
@@ -9,6 +8,8 @@ import { useContextStore } from '@/stores/context'
 const ctx = useContextStore()
 const toast = useToast()
 const groups = ref([])
+const error = ref('')
+let serial = 0
 
 const kemungkinanOptions = [
   { value: 1, label: '1 Hampir tidak terjadi' },
@@ -40,32 +41,41 @@ const levelColor = {
 }
 
 async function load() {
-  const { data } = await api.get('/risiko/form4', {
-    params: { opd_id: ctx.opdId, tahun: ctx.tahun },
-  })
-  groups.value = data
+  if (!ctx.ready) return
+  const id = ++serial
+  error.value = ''; groups.value = []
+  try {
+    const { data } = await api.get('/risiko/form4', { params: { opd_id: ctx.opdId, tahun: ctx.tahun } })
+    if (id !== serial) return
+    groups.value = data
+  } catch (e) { if (id === serial) error.value = e.response?.data?.detail || 'Gagal memuat analisis' }
 }
-async function saveAnalisis(item, { recalcPrioritas = false } = {}) {
+async function saveAnalisis(item) {
   const a = item.analisis
+  if (!a.skala_dampak || !a.skala_kemungkinan) return
   const payload = {
     risiko_id: item.id,
     skala_dampak: a.skala_dampak,
     skala_kemungkinan: a.skala_kemungkinan,
   }
-  // Saat dampak/kemungkinan diubah, biarkan backend menghitung ulang is_prioritas default.
-  if (!recalcPrioritas) payload.is_prioritas = a.is_prioritas
-  const { data } = await api.post('/risiko/analisis', payload)
-  Object.assign(item.analisis, data)
-  toast.add({ severity: 'success', summary: 'Analisis tersimpan', life: 1200 })
+  try {
+    const { data } = await api.post('/risiko/analisis', payload)
+    Object.assign(item.analisis, data)
+    toast.add({ severity: 'success', summary: 'Analisis tersimpan', life: 1200 })
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Analisis belum tersimpan', detail: typeof e.response?.data?.detail === 'string' ? e.response.data.detail : 'Periksa skala dan hak akses penilaian.', life: 7000 })
+    await load()
+  }
 }
-onMounted(load)
+watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
 </script>
 
 <template>
   <p class="muted" style="margin-top: 0">
-    Skala Risiko ditentukan berdasarkan Matriks Analisis Risiko 5×5 (Kemungkinan vs Dampak). Risiko dengan Skala &gt; 11 otomatis menjadi
-    <strong>prioritas</strong> (dapat disesuaikan manual).
+    Skala Risiko mengikuti Matriks 5×5. Skor di atas ambang Selera Risiko memerlukan pengendalian dan masuk daftar prioritas.
+    <router-link :to="{ name: 'selera-risiko' }">Tetapkan Selera Risiko</router-link> sebelum melakukan penilaian.
   </p>
+  <p v-if="error" role="alert">{{ error }}</p>
   <div v-for="g in groups" :key="g.jenis" class="page-card" style="margin-bottom: 16px; padding: 0">
     <div style="padding: 10px 14px; font-weight: 600; background: #eff6ff; border-bottom: 1px solid #e2e8f0">
       {{ g.label }} ({{ g.items.length }})
@@ -86,15 +96,15 @@ onMounted(load)
       <tbody>
         <tr v-for="(it, i) in g.items" :key="it.id">
           <td style="text-align: center">{{ i + 1 }}</td>
-          <td>{{ it.uraian_risiko }}</td>
+          <td><router-link :to="{ name: 'detail-risiko', params: { id: it.id } }">{{ it.uraian_risiko }}</router-link></td>
           <td style="text-align: center">{{ it.kode_risiko }}</td>
           <td style="text-align: center">
             <Select v-model="it.analisis.skala_dampak" :options="dampakOptions" optionLabel="label" optionValue="value"
-              placeholder="—" style="width: 100%; min-width: 160px" @change="saveAnalisis(it, { recalcPrioritas: true })" />
+              :disabled="!it.selera_risiko" placeholder="—" style="width: 100%; min-width: 160px" @change="saveAnalisis(it)" />
           </td>
           <td style="text-align: center">
             <Select v-model="it.analisis.skala_kemungkinan" :options="kemungkinanOptions" optionLabel="label" optionValue="value"
-              placeholder="—" style="width: 100%; min-width: 190px" @change="saveAnalisis(it, { recalcPrioritas: true })" />
+              :disabled="!it.selera_risiko" placeholder="—" style="width: 100%; min-width: 190px" @change="saveAnalisis(it)" />
           </td>
           <td style="text-align: center; font-weight: 700">{{ it.analisis.skala_risiko ?? '–' }}</td>
           <td style="text-align: center">
@@ -103,7 +113,19 @@ onMounted(load)
             </span>
           </td>
           <td style="text-align: center">
-            <Checkbox v-model="it.analisis.is_prioritas" binary @change="saveAnalisis(it)" />
+            <template v-if="it.selera_risiko">
+              <i
+                class="pi"
+                :class="it.analisis.is_prioritas === null ? 'pi-question-circle' : it.analisis.is_prioritas ? 'pi-check' : 'pi-minus'"
+                :style="{ color: it.analisis.is_prioritas ? '#15803d' : '#64748b' }"
+                role="img"
+                :aria-label="it.analisis.is_prioritas === null ? 'Belum dinilai' : it.analisis.is_prioritas ? 'Prioritas' : 'Bukan prioritas'"
+                :title="`${it.analisis.is_prioritas === null ? 'Belum dinilai' : it.analisis.is_prioritas ? 'Prioritas' : 'Bukan prioritas'} · Ambang ${it.selera_risiko.ambang}`"
+              />
+            </template>
+            <router-link v-else :to="{ name: 'selera-risiko' }" aria-label="Selera Risiko belum ditetapkan" title="Selera Risiko belum ditetapkan">
+              <i class="pi pi-exclamation-circle" aria-hidden="true" />
+            </router-link>
           </td>
         </tr>
         <tr v-if="!g.items.length"><td colspan="8" class="muted" style="padding: 12px">Belum ada risiko.</td></tr>

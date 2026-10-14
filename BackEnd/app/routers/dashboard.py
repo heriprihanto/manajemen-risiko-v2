@@ -17,6 +17,7 @@ from app.models import (
     RtpRisiko,
 )
 from app.services import analisis as an
+from app.services import selera
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -95,6 +96,7 @@ def summary(opd_id: int, tahun: int, session: Session = Depends(get_session)):
     heatmap_cells: dict[str, list[dict[str, Any]]] = {}
     detailed_risks: list[dict[str, Any]] = []
 
+    aktif = selera.daftar_aktif(session, opd_id, tahun)
     for r in risiko:
         # Jenis
         if r.jenis_risiko in per_jenis:
@@ -126,7 +128,8 @@ def summary(opd_id: int, tahun: int, session: Session = Depends(get_session)):
             else (None, None, None)
         )
         lvl = an.level_risiko(s) if s is not None else None
-        is_prio = bool(a and a.is_prioritas)
+        setting = selera.resolve(aktif, r.pemilik_risiko)
+        is_prio = selera.status(s, setting)
 
         if s is not None:
             jumlah_dianalisis += 1
@@ -160,6 +163,7 @@ def summary(opd_id: int, tahun: int, session: Session = Depends(get_session)):
             "skala_risiko": s,
             "level": lvl,
             "is_prioritas": is_prio,
+            "ambang_selera": setting.ambang if setting else None,
             "has_rtp": has_rtp,
             "rencana_tindak": rtp.rencana_tindak if rtp else None,
             "target_waktu": rtp.target_waktu if rtp else None,
@@ -173,15 +177,12 @@ def summary(opd_id: int, tahun: int, session: Session = Depends(get_session)):
             cell_key = f"{k}-{d}"
             heatmap_cells.setdefault(cell_key, []).append(item_dict)
 
-    # 6. Top Prioritas Register (Risiko level Tinggi & Sangat Tinggi atau is_prioritas)
+    # 6. Top prioritas mengikuti ambang yang berlaku.
     top_prioritas = [
         r
         for r in detailed_risks
         if r["skala_risiko"] is not None
-        and (
-            r["is_prioritas"]
-            or r["level"] in (an.LEVEL_SANGAT_TINGGI, an.LEVEL_TINGGI)
-        )
+        and r["is_prioritas"]
     ]
     top_prioritas.sort(
         key=lambda x: (x["skala_risiko"] or 0, 1 if not x["has_rtp"] else 0),

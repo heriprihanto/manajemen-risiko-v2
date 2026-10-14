@@ -48,7 +48,7 @@ function statusBadgeClass(status) {
         <div class="v text-rose font-bold">
           {{ (summary.total_prioritas || 0).toLocaleString('id-ID') }}
         </div>
-        <div class="l">Risiko Prioritas (Skala > 11)</div>
+        <div class="l">Risiko Prioritas (Hasil Penilaian)</div>
       </div>
       <div class="stat">
         <div class="v text-primary font-bold">

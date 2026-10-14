@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { watch, ref } from 'vue'
 import api from '@/api'
 import { useContextStore } from '@/stores/context'
 import {
@@ -10,6 +10,9 @@ import {
 
 const ctx = useContextStore()
 const data = ref(null)
+const error = ref('')
+const owner = ref(null)
+let serial = 0
 
 const dampakHeaders = [
   { val: 1, label: 'Tidak Signifikan' },
@@ -51,22 +54,34 @@ function cellItems(k, d) {
 }
 
 async function load() {
+  if (!ctx.ready) return
+  const id = ++serial
+  error.value = ''; data.value = null
+  try {
   const { data: d } = await api.get('/risiko/matriks', {
-    params: { opd_id: ctx.opdId, tahun: ctx.tahun },
+    params: { opd_id: ctx.opdId, tahun: ctx.tahun, ...(owner.value !== null ? { pemilik: owner.value } : {}) },
   })
-  data.value = d
+  if (id === serial) data.value = d
+  } catch (e) { if (id === serial) error.value = 'Gagal memuat matriks risiko.' }
 }
-onMounted(load)
+watch([() => ctx.opdId, () => ctx.tahun], () => { owner.value = null; load() }, { immediate: true })
+watch(owner, load)
 </script>
 
 <template>
+  <p v-if="error" role="alert">{{ error }}</p>
   <div v-if="data" class="page-card">
     <div class="header-banner">
       <h2 class="title"><i class="pi pi-th-large"></i> Matriks Analisis Risiko 5 × 5</h2>
       <p class="muted" style="margin: 4px 0 0 0">
         Sebaran risiko pada matriks analisis 5×5 (Kemungkinan vs Dampak). Nilai angka pada setiap sel menunjukkan
-        <strong>Nilai Level Risiko (Skala 1–25)</strong>, dengan batas toleransi risiko (garis ungu) yang memisahkan risiko dapat diterima dan risiko yang membutuhkan penanganan.
+        <strong>Besaran Risiko (Skala 1–25)</strong>. Garis ungu mengikuti ambang Selera Risiko yang ditetapkan Pemilik Risiko.
+        Warna menunjukkan level risiko. Skor ≤ ambang termasuk area penerimaan.
       </p>
+      <label>Pemilik Risiko <select v-model="owner"><option :value="null">Semua Pemilik Risiko</option><option v-for="n in data.pemilik" :key="n" :value="n">{{ n || 'Belum diisi / tingkat entitas' }}</option></select></label>
+      <p v-if="data.selera?.beragam">Ambang berbeda antar pemilik. Pilih Pemilik Risiko untuk melihat batas penerimaannya.</p>
+      <p v-else-if="data.selera?.ditetapkan">Ambang Selera Risiko: <strong>{{ data.selera.ambang }}</strong>. Skor 1–{{ data.selera.ambang }} diterima.</p>
+      <p v-else>Selera Risiko belum ditetapkan. <router-link :to="{ name: 'selera-risiko' }">Buka pengaturan</router-link>.</p>
     </div>
 
     <div class="matrix-scroll">
@@ -103,7 +118,7 @@ onMounted(load)
               :style="{
                 background: cellBgColor(k.val, d),
                 color: cellTextColor(k.val, d),
-                ...getToleranceBorderStyles(k.val, d)
+                ...getToleranceBorderStyles(k.val, d, data.selera?.diterima)
               }"
             >
               <div class="cell-content">
@@ -135,7 +150,7 @@ onMounted(load)
         <span class="legend-badge"><i style="background: #facc15" /><strong>Sedang (3)</strong> : Skala 11 – 15</span>
         <span class="legend-badge"><i style="background: #84cc16" /><strong>Rendah (2)</strong> : Skala 6 – 10</span>
         <span class="legend-badge"><i style="background: #10b981" /><strong>Sangat Rendah (1)</strong> : Skala 1 – 5</span>
-        <span class="legend-badge line-badge"><span class="purple-sample-line"></span><strong>Batas Toleransi Risiko</strong> (Selera Risiko)</span>
+        <span v-if="data.selera?.diterima" class="legend-badge line-badge"><span class="purple-sample-line"></span><strong>Batas Selera Risiko</strong></span>
       </div>
     </div>
   </div>

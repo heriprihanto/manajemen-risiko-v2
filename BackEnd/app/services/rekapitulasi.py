@@ -8,6 +8,7 @@
 4. Rekapitulasi Identifikasi Risiko (Level Risiko)
    Format: No | Nama OPD | Level Risiko
 """
+from app.services import selera
 from typing import Any
 from sqlmodel import Session, func, select
 
@@ -747,11 +748,10 @@ def get_rekap_realisasi_rtp(
         jml_rtp = 0
         jml_selesai = 0
 
+        aktif = selera.daftar_aktif(session, o.id_sub_pd, tahun)
         for r in r_list:
             a = an_map.get(r.id)
-            is_prio = bool(
-                a and (a.is_prioritas or (a.skala_risiko and a.skala_risiko > 11))
-            )
+            is_prio = selera.status(a.skala_risiko if a else None, selera.resolve(aktif, r.pemilik_risiko))
             if is_prio:
                 jml_prio += 1
 
@@ -940,4 +940,3 @@ def get_rekap_risk_event(
             "opd_nihil_kejadian": opd_nihil_kejadian,
         },
     }
-

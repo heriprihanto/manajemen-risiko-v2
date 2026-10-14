@@ -29,7 +29,7 @@ onMounted(load)
 
 <template>
   <p class="muted" style="margin-top: 0">
-    Daftar risiko prioritas (skala risiko &ge; 16 atau prioritas khusus), diurutkan dari skala tertinggi. Tetapkan prioritas pada Form 4.
+    Prioritas mengikuti hasil penilaian dan keputusan UPR. Urutan dalam setiap jenis risiko: skor, area dampak, kategori, lalu keputusan pimpinan. Atur dasar pemeringkatan melalui detail risiko.
   </p>
   <div v-for="g in groups" :key="g.jenis" class="page-card" style="margin-bottom: 16px; padding: 0">
     <div style="padding: 10px 14px; font-weight: 600; background: #fff7ed; border-bottom: 1px solid #e2e8f0">
@@ -51,7 +51,7 @@ onMounted(load)
       <tbody>
         <tr v-for="(it, i) in g.items" :key="it.id">
           <td style="text-align: center">{{ i + 1 }}</td>
-          <td>{{ it.uraian_risiko }}</td>
+          <td><router-link :to="{name:'detail-risiko',params:{id:it.id}}">{{ it.uraian_risiko }}</router-link></td>
           <td style="text-align: center">{{ it.kode_risiko }}</td>
           <td style="text-align: center; font-weight: 700">{{ it.analisis.skala_risiko }}</td>
           <td style="text-align: center">

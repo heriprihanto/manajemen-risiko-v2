@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, watch, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
@@ -19,6 +19,10 @@ const router = useRouter()
 const ctx = useContextStore()
 const data = ref(null)
 const loading = ref(true)
+const policy = ref(null)
+const governance = ref(null)
+const loadError = ref('')
+let loadSerial = 0
 
 // Filter jenis risiko untuk heatmap
 const filterJenis = ref('all')
@@ -60,16 +64,27 @@ const jenisLabel = {
 }
 
 async function load() {
+  if (!ctx.ready) return
+  const serial = ++loadSerial
   loading.value = true
+  loadError.value = ''
   try {
-    const { data: d } = await api.get('/dashboard/summary', {
-      params: { opd_id: ctx.opdId, tahun: ctx.tahun },
-    })
-    data.value = d
+    const params = { opd_id: ctx.opdId, tahun: ctx.tahun }
+    const results = await Promise.allSettled([
+      api.get('/dashboard/summary', {params}),
+      api.get('/selera-risiko', {params}),
+      api.get('/tata-kelola/ringkasan', {params}),
+    ])
+    if (serial !== loadSerial) return
+    const failed = results.find(r => r.status === 'rejected')
+    if (failed) throw failed.reason
+    data.value = results[0].value.data
+    policy.value = results[1].value.data
+    governance.value = results[2].value.data
   } catch (err) {
-    console.error('Gagal memuat dashboard summary:', err)
+    if (serial === loadSerial) loadError.value = 'Gagal memuat dashboard. Silakan segarkan kembali.'
   } finally {
-    loading.value = false
+    if (serial === loadSerial) loading.value = false
   }
 }
 
@@ -126,7 +141,7 @@ function openCellDialog(k, d) {
 }
 
 function navigateTo(path) {
-  if (path) router.push(path)
+  if (path) router.push(({ '/rtp': '/form7', '/analisis': '/form4' })[path] || path)
 }
 
 const sortedKategori = computed(() => {
@@ -141,11 +156,18 @@ const maxKategoriCount = computed(() => {
   return Math.max(...sortedKategori.value.map((k) => k.jumlah), 1)
 })
 
-onMounted(load)
+watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
 </script>
 
 <template>
+  <p v-if="loadError" role="alert">{{ loadError }}</p>
   <div v-if="data" class="dashboard-container">
+    <div v-if="governance" class="page-card">
+      <h3>Keputusan & efektivitas pengendalian</h3>
+      <p><strong>{{ governance.terlambat }}</strong> tindakan terlambat · <strong>{{ governance.menunggu }}</strong> respons menunggu keputusan · <strong>{{ governance.residual_melampaui }}</strong> risiko residual melampaui batas · <strong>{{ governance.perlu_penilaian_ulang }}</strong> risiko perlu ditinjau setelah kejadian.</p>
+      <router-link :to="{name:'tata-kelola'}">Buka pemantauan dan tindak lanjut →</router-link>
+      <p class="muted">Selera Risiko: {{ policy?.visual?.beragam ? 'Ambang berbeda antar Pemilik Risiko; buka Matriks Risiko untuk memilih pemilik.' : policy?.visual?.ditetapkan ? `Skor 1–${policy.visual.ambang} diterima.` : 'Belum ditetapkan.' }} <router-link :to="{ name: 'selera-risiko' }">Kelola Selera Risiko</router-link></p>
+    </div>
     <!-- Header Eksekutif -->
     <div class="exec-header page-card">
       <div class="exec-header-content">
@@ -340,7 +362,7 @@ onMounted(load)
                       getCellClass(k.val, d.val),
                       { 'has-risks': getCellRisks(k.val, d.val).length > 0 }
                     ]"
-                    :style="getToleranceBorderStyles(k.val, d.val)"
+                    :style="getToleranceBorderStyles(k.val, d.val, policy?.visual?.diterima)"
                     @click="openCellDialog(k.val, d.val)"
                     v-tooltip.top="`Kemungkinan: ${k.val}, Dampak: ${d.val} (Skor: ${getMatrixScore(k.val, d.val)}) - ${getCellRisks(k.val, d.val).length} risiko`"
                   >
@@ -395,9 +417,9 @@ onMounted(load)
             <span class="legend-title">Sangat Rendah (1)</span>
             <span class="legend-range">(Skor 1 – 5)</span>
           </div>
-          <div class="legend-item" style="border-left: 2px solid #cbd5e1; padding-left: 8px;">
+          <div v-if="policy?.visual?.diterima" class="legend-item" style="border-left: 2px solid #cbd5e1; padding-left: 8px;">
             <span style="display: inline-block; width: 18px; height: 3.5px; background: #7c3aed; border-radius: 2px;"></span>
-            <span class="legend-title">Batas Toleransi</span>
+            <span class="legend-title">Batas Selera Risiko</span>
           </div>
         </div>
       </div>

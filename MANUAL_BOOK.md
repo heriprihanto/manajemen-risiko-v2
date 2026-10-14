@@ -18,7 +18,7 @@
    - 2.3 [Struktur Menu & Layout Antarmuka](#23-struktur-menu--layout-antarmuka)
 3. [MODUL DASHBOARD EKSEKUTIF (EXECUTIVE SUMMARY)](#3-modul-dashboard-eksekutif-executive-summary)
    - 3.1 [Kartu Indikator Kunci (Executive KPI Cards)](#31-kartu-indikator-kunci-executive-kpi-cards)
-   - 3.2 [Matriks Analisis Risiko Interaktif (Heatmap 4×4 BPKP)](#32-matriks-analisis-risiko-interaktif-heatmap-44-bpkp)
+   - 3.2 [Matriks Analisis Risiko Interaktif (Heatmap 5×5 Perwal 1/2026)](#32-matriks-analisis-risiko-interaktif-heatmap-55-perwal-12026)
    - 3.3 [Fitur Drill-Down Risiko Sel Heatmap](#33-fitur-drill-down-risiko-sel-heatmap)
    - 3.4 [Sebaran Level & Kategori Risiko](#34-sebaran-level--kategori-risiko)
    - 3.5 [Rekomendasi Strategis Eksekutif (Smart Alerts)](#35-rekomendasi-strategis-eksekutif-smart-alerts)
@@ -68,7 +68,7 @@ Sistem ini mentransformasikan instrumen Kertas Kerja Excel BPKP menjadi basis da
 ### 1.2 Tujuan Sistem
 1. Memfasilitasi pelaksanaan penilaian risiko tahunan (risk assessment) oleh seluruh Perangkat Daerah.
 2. Menyediakan dasbor eksekutif bagi Walikota, Sekretaris Daerah, Inspektorat, dan Kepala OPD untuk memantau profil risiko secara *real-time*.
-3. Mengotomatisasi perhitungan skala risiko, penentuan level risiko, penyusunan matriks 4×4, dan pengelompokan risiko prioritas.
+3. Mengotomatisasi perhitungan skala risiko, penentuan level risiko, penyusunan matriks 5×5, dan pengelompokan risiko prioritas.
 4. Menghasilkan dokumen laporan resmi Manajemen Risiko sesuai format standar Badan Pengawasan Keuangan dan Pembangunan (BPKP).
 
 ### 1.3 Landasan Regulasi
@@ -106,13 +106,13 @@ Seluruh data yang ditampilkan pada menu Formulir, Matriks, Dashboard, dan Lapora
 
 ### 2.3 Struktur Menu & Layout Antarmuka
 Menu navigasi terletak pada bilah sisi (sidebar) kiri:
-- **Dashboard**: Halaman Executive Summary, Heatmap 4×4, dan Rekomendasi.
+- **Dashboard**: Halaman Executive Summary, Heatmap 5×5, dan Rekomendasi.
 - **Kuesioner CEE (Form 1.a)**: Survei lingkungan pengendalian & pengelolaan responden.
 - **Reviu Dokumen (Form 1.b & 1.c)**: Penilaian kelengkapan bukti dan simpulan CEE.
 - **Penetapan Konteks (Form 2.a / 2.b / 2.c)**: Konteks strategis dan operasional.
 - **Identifikasi Risiko (Form 3.a / 3.b / 3.c)**: Pendaftaran risiko baru.
 - **Analisis & Evaluasi (Form 4 & 5)**: Penilaian dampak, kemungkinan, dan prioritas.
-- **Matriks Risiko**: Visualisasi kuadran risiko 4×4.
+- **Matriks Risiko**: Visualisasi kuadran risiko 5×5.
 - **RTP Risiko (Form 7)**: Rencana mitigasi dan penanggung jawab risiko.
 - **Pemantauan (Form 8, 9, 10)**: Infokom, monitoring pengendalian, dan realisasi.
 - **Kamus Risiko**: Basis data referensi risiko dan penyebab standar.
@@ -130,7 +130,7 @@ Dashboard dirancang sebagai ringkasan eksekutif bagi pimpinan untuk mengetahui s
 +-------------------------------------------------------------------------------+
 |  [Total Risiko: 24] [Risiko Prioritas: 6] [RTP: 100%] [C: 18 | UC: 6] [CEE: 42] |
 +-------------------------------------------------------------------------------+
-|  [HEATMAP RISIKO 4x4]               |  [SEBARAN LEVEL & KATEGORI]             |
+|  [HEATMAP RISIKO 5x5]               |  [SEBARAN LEVEL & KATEGORI]             |
 |  Kemungkinan (Y) vs Dampak (X)      |  - Sangat Tinggi: 2 risiko (8%)         |
 |  Klik sel untuk drill-down daftar   |  - Tinggi       : 4 risiko (17%)        |
 |  Filter: Semua | Form 3a | 3b | 3c  |  - Sedang       : 10 risiko (42%)       |
@@ -146,34 +146,25 @@ Dashboard dirancang sebagai ringkasan eksekutif bagi pimpinan untuk mengetahui s
 
 ### 3.1 Kartu Indikator Kunci (Executive KPI Cards)
 1. **Total Risiko Teridentifikasi**: Jumlah keseluruhan risiko terdaftar (rinci Strategis Pemda vs OPD).
-2. **Risiko Prioritas**: Jumlah risiko berlevel *Tinggi* dan *Sangat Tinggi* yang membutuhkan perhatian langsung pimpinan.
+2. **Risiko Prioritas**: Jumlah risiko yang ditetapkan prioritas dalam hasil penilaian dan keputusan UPR.
 3. **Tindak Pengendalian (RTP)**: Rasio pemenuhan RTP atas risiko prioritas. Jika ada risiko prioritas yang belum ber-RTP, muncul peringatan bertanda merah.
 4. **Profil Kendali (C vs UC)**:
    - **Controllable (C)**: Risiko di bawah wewenang dan kendali internal OPD.
    - **Uncontrollable (UC)**: Risiko di luar wewenang OPD (misal bencana alam, perubahan regulasi pusat, atau ketergantungan lintas instansi).
 5. **Responden Kuesioner CEE**: Jumlah pegawai yang telah berpartisipasi dalam survei lingkungan pengendalian.
 
-### 3.2 Matriks Analisis Risiko Interaktif (Heatmap 4×4 BPKP)
-Heatmap mengelompokkan risiko berdasarkan perpotongan:
-- **Sumbu Y (Kemungkinan)**:
-  - 4 = Hampir Pasti Terjadi
-  - 3 = Sering Terjadi
-  - 2 = Kadang-kadang Terjadi
-  - 1 = Jarang Terjadi
-- **Sumbu X (Dampak)**:
-  - 1 = Rendah
-  - 2 = Sedang
-  - 3 = Besar
-  - 4 = Sangat Besar
+### 3.2 Matriks Analisis Risiko Interaktif (Heatmap 5×5 Perwal 1/2026)
+Matriks mengikuti Tabel 9 Lampiran Perwal 1/2026. Sumbu kemungkinan dan dampak menggunakan skala 1–5. Skor merupakan nilai tabel, bukan perkalian; kemungkinan 1 dan dampak 5 menghasilkan skor 20.
 
-**Zona Level Risiko & Warna:**
-- **Sangat Tinggi (Merah)**: Skor 12 – 16 (Prioritas Utama, mitigasi mutlak).
-- **Tinggi (Oranye)**: Skor 8 – 9 (Perlu tindakan pengendalian segera).
-- **Sedang (Kuning)**: Skor 4 – 6 (Pemantauan rutin dan SOP).
-- **Rendah (Hijau)**: Skor 1 – 3 (Dapat diterima / monitoring periodik).
+| Skor | Level | Warna |
+|---|---|---|
+| 1–5 | Sangat rendah | Hijau tua |
+| 6–10 | Rendah | Hijau muda |
+| 11–15 | Sedang | Kuning |
+| 16–19 | Tinggi | Oranye |
+| 20–25 | Sangat tinggi | Merah |
 
-> [!NOTE]
-> Gunakan tombol filter di atas Heatmap (**Semua**, **Form 3.a**, **Form 3.b**, **Form 3.c**) untuk melihat sebaran risiko berdasarkan jenisnya.
+Warna level tidak menentukan keputusan penerimaan. Garis batas mengikuti Selera Risiko yang ditetapkan pemilik. Tanpa ketetapan atau jika ambang antar pemilik berbeda, garis gabungan tidak ditampilkan. Gunakan filter jenis risiko untuk melihat sebaran strategis Pemda, strategis OPD, atau operasional OPD.
 
 ### 3.3 Fitur Drill-Down Risiko Sel Heatmap
 Setiap sel kuadran dapat diklik:
@@ -312,46 +303,35 @@ Pilih salah satu status pengendalian pada dropdown:
 ## 7. TAHAP 4: ANALISIS & EVALUASI RISIKO
 
 ### 7.1 Form 4: Analisis Risiko (Kemungkinan & Dampak)
-Pada form ini, lakukan penetapan skala dampak dan kemungkinan untuk setiap risiko yang telah diidentifikasi:
+Pilih kedua skala untuk menyimpan penilaian awal. Setiap penyimpanan menghasilkan riwayat dengan salinan kebijakan yang digunakan.
 
-#### Kriteria Skala Kemungkinan (1 s.d 4):
-- **1 (Jarang)**: Kejadian diprediksi terjadi < 2 kali dalam setahun.
-- **2 (Kadang-kadang)**: Kejadian diprediksi terjadi 2 s.d 5 kali dalam setahun.
-- **3 (Sering)**: Kejadian diprediksi terjadi 6 s.d 10 kali dalam setahun.
-- **4 (Hampir Pasti)**: Kejadian terjadi > 10 kali atau hampir dipastikan muncul.
-
-#### Kriteria Skala Dampak (1 s.d 4):
-- **1 (Rendah)**: Gangguan kecil, tidak berdampak pada pencapaian target, kerugian finansial sangat minimal.
-- **2 (Sedang)**: Gangguan terasa, keterlambatan penyelesaian kegiatan < 1 bulan, kerugian finansial sedang.
-- **3 (Besar)**: Gangguan signifikan terhadap pencapaian target IKU, sorotan publik lokal, kerugian finansial cukup besar.
-- **4 (Sangat Besar)**: Target kinerja utama gagal tercapai, pelanggaran hukum fatal, sorotan media nasional, atau kerugian finansial sangat tinggi.
-
-#### Perhitungan Skala & Level Risiko:
-$$\text{Skor Risiko} = \text{Skala Dampak} \times \text{Skala Kemungkinan}$$
-
-| Rentang Skor | Level Risiko | Tindakan Wajib |
-|---|---|---|
-| **12 – 16** | **Sangat Tinggi** | Wajib disusun Rencana Tindak Pengendalian (RTP) segera dan dipantau bulanan. |
-| **8 – 9** | **Tinggi** | Wajib disusun Rencana Tindak Pengendalian (RTP) dan dipantau triwulanan. |
-| **4 – 6** | **Sedang** | Dikelola dengan optimalisasi SOP dan pengawasan berkala. |
-| **1 – 3** | **Rendah** | Diterima (*acceptable*), dipantau melalui pemantauan rutin tahunan. |
+- Kemungkinan: 1 hampir tidak terjadi; 2 jarang terjadi; 3 kadang terjadi; 4 sering terjadi; 5 hampir pasti terjadi.
+- Dampak: 1 tidak signifikan; 2 minor; 3 moderat; 4 signifikan; 5 sangat signifikan.
+- Deskripsi operasional ditetapkan dalam kebijakan melalui menu Tata Kelola Risiko, berdasarkan dokumen penetapan/FGD.
+- Skor mengikuti tabel matriks, dengan level seperti pada bagian 3.2.
 
 ### 7.2 Form 5: Evaluasi Risiko & Penetapan Prioritas
-- Secara baku (*default*), seluruh risiko dengan **Skor $\ge 8$ (Tinggi & Sangat Tinggi)** ditetapkan sebagai **Risiko Prioritas**.
-- Pengguna dapat memberikan centang manual (*override*) pada kolom **Prioritas** apabila ada pertimbangan khusus pimpinan (misalnya risiko bernilai skor 6 namun memiliki sensitivitas hukum/publik tinggi).
+Buka menu **Selera Risiko**, pilih ambang 1–25 untuk OPD dan tahun terpilih. Isi pertimbangan sumber daya; akun pencatat tersimpan otomatis. Skor ≤ ambang termasuk area penerimaan tanpa pengendalian tambahan; skor > ambang masuk daftar prioritas. Ketetapan khusus pemilik mendahului ketetapan entitas. Tanpa ketetapan, penilaian baru belum dapat disimpan.
+
+Prioritas dihitung otomatis dari ambang, tanpa centang manual. Perubahan Selera Risiko memperbarui prioritas analisis saat ini; riwayat penilaian, RTP, dan laporan tersimpan tetap utuh. Urutan risiko dalam setiap jenis mengikuti skor menurun, area dampak, kategori, lalu urutan pimpinan. Tetapkan area dan urutan melalui halaman detail risiko.
+
+Penilaian target dan residual dicatat melalui detail risiko; keduanya tidak menimpa penilaian awal. Residual memerlukan referensi bukti evaluasi.
 
 ---
 
 ## 8. TAHAP 5: RENCANA TINDAK PENGENDALIAN (RTP)
 
 ### 8.1 Form 7: Penyusunan RTP Risiko Prioritas
+Panduan isian dan bukti terbaru: [Form 7 — RTP atas Risiko](docs/FORM7_RTP.md).
+
 Form 7 adalah inti mitigasi risiko. Seluruh risiko yang bertatus prioritas pada Form 5 akan muncul secara otomatis di Form 7.
 
 Pengguna wajib melengkapi data pengendalian:
 1. **Uraian Rencana Tindak Pengendalian (Mitigasi)**: Tindakan nyata/baru yang akan dilakukan untuk menurunkan kemungkinan atau dampak risiko.
 2. **Pemilik Risiko / Penanggung Jawab (PIC)**: Nama pejabat atau unit kerja pelaksana (misal: *Kepala Bidang Pelayanan Kesehatan*, *PPK Kegiatan*).
-3. **Target Waktu**: Bulan/Triwulan pelaksanaan rencana aksi (misal: *Triwulan II 2026*, *Juni 2026*).
-4. **Bukti Fisik / Output**: Dokumen bukti implementasi (misal: *SOP Baru, Laporan Sosialisasi, Berita Acara Uji Petik*).
+3. **Target Waktu**: Pilih rentang pelaksanaan rencana aksi melalui datepicker **Dari tanggal** dan **Sampai tanggal**. Tanggal akhir tidak boleh sebelum tanggal awal.
+4. **Status Kegiatan Pengendalian**: Pilih sudah ada atau tidak ada. Jika sudah ada, lengkapi uraian, judul berkas, dan bukti unggahan (maksimal 5 MB) atau link.
+5. **Respon Risiko**: Pilih mengurangi kemungkinan, mengurangi dampak, membagi, menghindari, atau menerima risiko. Realisasi Waktu disembunyikan pada form; data lama tetap tersimpan.
 
 > [!IMPORTANT]
 > Pastikan seluruh risiko prioritas telah diisi rencana tindak pengendaliannya agar indikator kepatuhan RTP pada Dashboard mencapai 100%.
@@ -416,7 +396,7 @@ Aplikasi menyediakan fitur pratinjau (*print preview*) dan cetak laporan resmi u
 > **Jawaban**: Sesuai ketentuan, field Kategori Risiko bersifat *Read-Only* dan terisi otomatis berdasarkan referensi dari Kamus Risiko. Pilihlah uraian risiko yang sesuai dengan Kamus Risiko agar kategorinya terisi secara tepat.
 
 ### Q4: Mengapa risiko yang bernilai tinggi tidak muncul di Form 7 (RTP)?
-> **Jawaban**: Periksa **Form 5 (Evaluasi Risiko)**. Pastikan risiko tersebut memiliki status centang **Prioritas**. Jika skor risiko $\ge 8$ namun belum tercentang, simpan ulang pada Form 4 atau berikan centang manual pada Form 5.
+> **Jawaban**: Periksa **Form 5 (Evaluasi Risiko)**. Pastikan risiko tersebut memiliki status centang **Prioritas**. Periksa kebijakan yang digunakan saat penilaian. Perubahan prioritas dilakukan melalui Form Analisis oleh UPR dengan alasan keputusan.
 
 ### Q5: Bagaimana jika sesi login saya tiba-tiba keluar (logout) ke halaman Login?
 > **Jawaban**: Demi alasan keamanan, token sesi (JWT) memiliki masa kedaluwarsa. Jika aplikasi ditinggalkan dalam kondisi diam untuk jangka waktu tertentu, silakan login kembali dengan memasukkan username, password, dan captcha baru.
@@ -427,3 +407,10 @@ Aplikasi menyediakan fitur pratinjau (*print preview*) dan cetak laporan resmi u
 ---
 
 *Manual Book Manajemen Risiko SPIP Terintegrasi 2026 — Pemerintah Kota Tegal*
+
+
+## Tata Kelola Risiko — pembaruan Perwal 1/2026
+
+Panduan penugasan, kebijakan berversi, persetujuan, penilaian residual, beberapa tindakan berbukti, reviu, fraud, dan pelaporan berkala tersedia pada [Panduan Tata Kelola Perwal 1/2026](docs/TATA_KELOLA_PERWAL_2026.md).
+
+Form 7/8/9 aplikasi mempertahankan route lama; kepala cetak mencantumkan padanan Form 10/11/12 pada lampiran Perwal. Form 10 aplikasi tetap merupakan catatan kejadian, bukan Form 10 RTP lampiran.

@@ -42,6 +42,7 @@ const navGroups = [
     label: 'Beranda',
     items: [
       ['dashboard', 'Dashboard', 'pi-home'],
+      ['tata-kelola', 'Tata Kelola Risiko', 'pi-sitemap'],
       ['laporan', 'Cetak Laporan', 'pi-print'],
       ['generate-rtp', 'Generate Dokumen RTP', 'pi-file-word'],
     ],
@@ -71,20 +72,19 @@ const navGroups = [
   {
     label: 'Pengelolaan Risiko',
     items: [
+      ['selera-risiko', 'Selera Risiko', 'pi-sliders-h'],
       ['kamus-risiko', 'Kamus Risiko', 'pi-book'],
       ['konteks', 'Penetapan Konteks', 'pi-sitemap'],
       ['identifikasi-risiko', 'Identifikasi Risiko', 'pi-flag'],
       ['form4', 'Analisis Risiko', 'pi-chart-bar'],
       ['matriks', 'Matriks Risiko', 'pi-th-large'],
       ['form5', 'Risiko Prioritas', 'pi-star'],
-      ['form7', 'RTP Risiko', 'pi-shield'],
+      ['form7', 'Respon Risiko (RTP)', 'pi-shield'],
     ],
   },
   {
     label: 'Komunikasi & Pemantauan',
     items: [
-      ['form8', 'Informasi & Komunikasi', 'pi-megaphone'],
-      ['form9', 'Rencana Pemantauan', 'pi-eye'],
       ['form10', 'Monitoring Event', 'pi-history'],
       ['approval-kejadian', 'Approval Kejadian', 'pi-check-circle'],
     ],

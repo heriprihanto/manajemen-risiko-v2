@@ -13,11 +13,14 @@ class Infokom(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     opd_id: int = Field(index=True)
     tahun: int = Field(index=True)
+    risiko_id: int | None = Field(default=None, foreign_key="tr_risiko.id", index=True)
     no_urut: str | None = None
     kegiatan_pengendalian: str | None = None
     media_bentuk: str | None = None
     penyedia_informasi: str | None = None
     penerima_informasi: str | None = None
+    rencana_mulai: date | None = None
+    rencana_selesai: date | None = None
     rencana_waktu: str | None = None
     realisasi_waktu: str | None = None
     keterangan: str | None = None
@@ -31,11 +34,14 @@ class MonitoringPi(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     opd_id: int = Field(index=True)
     tahun: int = Field(index=True)
+    risiko_id: int | None = Field(default=None, foreign_key="tr_risiko.id", index=True)
     no_urut: str | None = None
     jenis_risiko: str | None = None  # strategis_pemda / strategis_opd / operasional_opd
     kegiatan_pengendalian: str | None = None
     metode_pemantauan: str | None = None
     penanggung_jawab: str | None = None
+    rencana_mulai: date | None = None
+    rencana_selesai: date | None = None
     rencana_waktu: str | None = None
     realisasi_waktu: str | None = None
     keterangan: str | None = None

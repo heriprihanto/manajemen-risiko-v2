@@ -1,6 +1,6 @@
 /**
  * Utilitas Matriks Analisis Risiko 5x5
- * Sesuai standar BPKP / ISO 31000
+ * Mengikuti Tabel 9 Lampiran Perwal Kota Tegal 1/2026.
  */
 
 export const MATRIKS_SKALA = {
@@ -97,22 +97,19 @@ export function getMatrixSolidColor(k, d) {
 }
 
 /**
- * Mengembalikan styling batas toleransi risiko (garis ungu pada gambar referensi).
- * Memisahkan risiko diterima (<= 10) dengan risiko ditangani (>= 11).
+ * Batas antarsel mengikuti ambang selera risiko yang ditetapkan pemilik.
+ * Tidak ada garis keputusan bila kebijakan belum ditetapkan.
  */
-export function getToleranceBorderStyles(k, d) {
+export function getToleranceBorderStyles(k, d, accepted = null) {
+  if (!Array.isArray(accepted)) return {}
   const styles = {}
   const purpleBorder = '3.5px solid #7c3aed'
-
-  // Garis vertikal di kanan (4,1), (3,2), (2,3), (1,4)
-  if ((k === 4 && d === 1) || (k === 3 && d === 2) || (k === 2 && d === 3) || (k === 1 && d === 4)) {
+  const within = (row, col) => accepted.includes(getMatrixScore(row, col))
+  if (d < 5 && within(k,d) !== within(k,d+1)) {
     styles.borderRight = purpleBorder
   }
-
-  // Garis horizontal di bawah (4,2), (3,3), (2,4)
-  if ((k === 4 && d === 2) || (k === 3 && d === 3) || (k === 2 && d === 4)) {
+  if (k > 1 && within(k,d) !== within(k-1,d)) {
     styles.borderBottom = purpleBorder
   }
-
   return styles
 }

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
-from app.core.security import UserDep
+from app.core.security import UserDep, AdminDep
 from app.db import get_session
 from app.models.kamus import KamusRisiko
 
@@ -173,7 +173,7 @@ def get_kamus_risiko(id: int, session: Session = Depends(get_session)):
 def create_kamus_risiko(
     payload: dict[str, Any] = Body(...),
     session: Session = Depends(get_session),
-    user: dict = UserDep,
+    user: dict = AdminDep,
 ):
     """Menambah data kamus risiko baru."""
     nama_risiko = (payload.get("nama_risiko") or "").strip()
@@ -234,7 +234,7 @@ def update_kamus_risiko(
     id: int,
     payload: dict[str, Any] = Body(...),
     session: Session = Depends(get_session),
-    user: dict = UserDep,
+    user: dict = AdminDep,
 ):
     """Memperbarui data kamus risiko."""
     obj = session.get(KamusRisiko, id)
@@ -280,7 +280,7 @@ def update_kamus_risiko(
 def delete_kamus_risiko(
     id: int,
     session: Session = Depends(get_session),
-    user: dict = UserDep,
+    user: dict = AdminDep,
 ):
     """Menghapus data kamus risiko."""
     obj = session.get(KamusRisiko, id)

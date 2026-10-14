@@ -13,6 +13,8 @@ import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import api from '@/api'
+import { useAuthStore } from '@/stores/auth'
+const auth = useAuthStore()
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -375,11 +377,13 @@ onMounted(() => {
           :loading="loading"
         />
         <Button
+          v-if="auth.isAdmin"
           label="Tambah Risiko"
           icon="pi pi-plus"
           severity="primary"
           @click="openCreateDialog"
         />
+        <router-link v-if="!auth.isAdmin" :to="{name:'tata-kelola'}">Usulkan risiko melalui Tata Kelola → Usulan Kamus</router-link>
       </div>
     </div>
 
@@ -534,7 +538,7 @@ onMounted(() => {
         </Column>
 
         <!-- Kolom Aksi -->
-        <Column header="Aksi" style="width: 110px; text-align: center;">
+        <Column v-if="auth.isAdmin" header="Aksi" style="width: 110px; text-align: center;">
           <template #body="{ data }">
             <div class="action-buttons">
               <Button

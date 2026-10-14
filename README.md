@@ -8,6 +8,7 @@ Perangkat Daerah).
 - **Frontend**: Vue 3 · PrimeVue (Vite)
 - **Data**: per OPD (`ta_opd`) dan per Tahun Penilaian
 - **Dokumentasi & Panduan Pengguna**: [MANUAL_BOOK.md](MANUAL_BOOK.md)
+- **Tata kelola Perwal 1/2026**: [Panduan kebijakan, persetujuan, pengendalian dan pelaporan](docs/TATA_KELOLA_PERWAL_2026.md)
 
 ## Alur / Form yang didukung
 
@@ -20,15 +21,18 @@ Perangkat Daerah).
 | Form 6 RTP atas CEE | `Form 6 RTP CE` | Rencana tindak pengendalian lingkungan |
 | Form 2.a/2.b/2.c Konteks | `Form 2a/2b/2c` | Konteks strategis Pemda / strategis OPD / operasional OPD |
 | Form 3 Identifikasi | `Form 3a/3b/3c` | Identifikasi risiko strategis Pemda, strategis OPD, operasional OPD |
-| Form 4 Analisis | `Form 4` | Skala dampak × kemungkinan → skala & level risiko |
-| Matriks Risiko | `Matrik Risiko` | Heatmap 4×4 sebaran risiko |
-| Form 5 Prioritas | `Form 5` | Daftar risiko prioritas (skala > 4) — otomatis |
+| Form 4 Analisis | `Form 4` | Skor tabel matriks 5×5, kebijakan berversi dan riwayat penilaian |
+| Matriks Risiko | `Matrik Risiko` | Heatmap 5×5; garis toleransi mengikuti kebijakan yang disahkan |
+| Form 5 Prioritas | `Form 5` | Hasil penilaian/keputusan UPR; urutan skor, area dampak, kategori dan keputusan pimpinan |
 | Form 7 RTP Risiko | `Form 7` | RTP atas risiko prioritas |
 | Form 8 Info & Komunikasi | `Form 8` | Pengkomunikasian pengendalian |
 | Form 9 Rencana Pemantauan | `Form 9` | Pemantauan kegiatan pengendalian |
 | Form 10 Monitoring Event | `Form 10` | Pencatatan kejadian risiko & realisasi RTP |
 | Cetak Laporan | semua | Print preview / cetak ke PDF, pilih form |
 | **Survei Publik** (`/survei`) | `Form 1.a` | Form kuesioner CEE untuk responden terdaftar, akses token tanpa login |
+| **Tata Kelola Risiko** (`/tata-kelola`) | Perwal 1/2026 | Penugasan, kebijakan, pemantauan lintas OPD, usulan kamus, laporan berkala dan riwayat aktivitas |
+| **Detail Risiko** (`/risiko/:id/detail`) | Register terintegrasi | Penilaian awal/target/residual, respons dan persetujuan, beberapa tindakan, bukti, reviu, kejadian dan skenario fraud terbatas |
+| **Laporan Berkala** (`/laporan-berkala/:id`) | Pasal 20–21 | Arsip saat pengajuan, persetujuan internal, cetak PDF dan kompilasi risiko strategis Pemda |
 
 ## Survei Publik (Token Undangan)
 
@@ -42,8 +46,14 @@ Panduan lengkap tersedia di [Dokumentasi Perubahan Alur Kuesioner CEE](docs/PERU
 ### Logika perhitungan utama
 - **Simpulan kuesioner**: simpulan pertanyaan *Memadai* bila **modus** jawaban 3/4,
   *Kurang Memadai* bila 1/2. Sub-unsur *Memadai* bila seluruh pertanyaannya Memadai.
-- **Skala risiko** = skala dampak (1–4) × skala kemungkinan (1–4). Level: Rendah (1–3),
-  Sedang (4–6), Tinggi (8–9), Sangat Tinggi (12–16). Risiko **prioritas** bila skala > 4.
+- **Skor risiko** mengikuti tabel matriks 5×5 Lampiran Perwal 1/2026, bukan perkalian.
+  Kemungkinan 1 dan dampak 5 menghasilkan skor 20. Level: sangat rendah 1–5,
+  rendah 6–10, sedang 11–15, tinggi 16–19, sangat tinggi 20–25.
+- **Prioritas** mengikuti ambang pada menu **Selera Risiko**, per OPD/tahun dan
+  Pemilik Risiko. Skor ≤ ambang diterima; skor > ambang perlu pengendalian.
+  Tetapkan ambang sebelum penilaian baru. [Panduan Selera Risiko](docs/SELERA_RISIKO.md).
+- **Residual** disimpan terpisah dari penilaian awal. Penyelesaian tindakan dan
+  penilaian residual memerlukan referensi bukti; efektivitas tidak diasumsikan otomatis.
 
 ## Menjalankan
 
@@ -119,6 +129,7 @@ Verifikasi lokal (tanpa mengirim email sungguhan):
 
 ```sh
 cd BackEnd
+.venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
@@ -129,4 +140,3 @@ pengiriman melalui SMTP nyata perlu diverifikasi di lingkungan deployment.
 Pengiriman undangan WhatsApp dinonaktifkan. Tombol **Kirim Email Undangan**
 hanya mengirim email kepada responden yang belum mengisi. Konfigurasi gateway
 dan riwayat WhatsApp lama tetap tersimpan, tetapi tidak digunakan untuk pengiriman.
-

@@ -8,8 +8,8 @@ Level risiko:
     Rendah (2)        : skala 6 s.d 10  (Hijau Muda)
     Sangat Rendah (1) : skala 1 s.d 5   (Hijau Tua)
 
-Catatan Form 4: risiko yang menjadi prioritas utama default (masuk Form 5 / dibuatkan RTP)
-adalah risiko dengan skala > 11.
+Ambang selera risiko ditetapkan per OPD/tahun dan Pemilik Risiko.
+Penilaian baru mengikuti kebijakan berversi di services/tata_kelola.py.
 """
 
 DAMPAK_LABEL = {
@@ -43,7 +43,6 @@ LEVEL_SEDANG = "Sedang (3)"
 LEVEL_TINGGI = "Tinggi (4)"
 LEVEL_SANGAT_TINGGI = "Sangat Tinggi (5)"
 
-PRIORITAS_THRESHOLD = 11  # skala > 11 -> prioritas default (masuk Form 5 / dibuatkan RTP)
 
 
 def hitung_skala(dampak: int | None, kemungkinan: int | None) -> float | None:
@@ -82,21 +81,6 @@ def warna_level(level: str | None) -> str:
     }.get(level, "#9ca3af")
 
 
-def is_prioritas_default(skala: float | None) -> bool:
-    return skala is not None and skala > PRIORITAS_THRESHOLD
-
-
 def keterangan_penanganan(level: str | None) -> str:
-    return {
-        LEVEL_SANGAT_RENDAH: "Risiko dapat diterima",
-        "Sangat Rendah": "Risiko dapat diterima",
-        LEVEL_RENDAH: "Risiko dapat diterima",
-        "Rendah": "Risiko dapat diterima",
-        LEVEL_SEDANG: "Risiko tidak dapat diterima / penanganan selanjutnya",
-        "Sedang": "Risiko tidak dapat diterima / penanganan selanjutnya",
-        LEVEL_TINGGI: "Risiko tidak dapat diterima / penanganan selanjutnya",
-        "Tinggi": "Risiko tidak dapat diterima / penanganan selanjutnya",
-        LEVEL_SANGAT_TINGGI: "Risiko tidak dapat diterima / penanganan prioritas",
-        "Sangat Tinggi": "Risiko tidak dapat diterima / penanganan prioritas",
-    }.get(level, "")
-
+    # Warna/level saja tidak menentukan keputusan penerimaan.
+    return "Penanganan mengikuti selera, toleransi, dan keputusan UPR" if level else ""

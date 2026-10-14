@@ -298,3 +298,103 @@ Pemicu
 Semua informasi lapor kejadian akan masuk di Menu Approval Kejadian dan akan divalidasi oleh pengelola risiko
 
 
+## Implementasi rekomendasi Perwal 1/2026 — 13 Oktober 2026
+
+Panduan lengkap: [Tata Kelola Perwal 1/2026](docs/TATA_KELOLA_PERWAL_2026.md).
+
+- [x] Kebijakan penilaian berversi: selera, toleransi, kriteria skala dan dasar penetapan; persetujuan UPR Pemda.
+- [x] Matriks 5×5 dan prioritas mengikuti kebijakan; aturan >11 hanya fallback lama yang diberi label.
+- [x] Penugasan pejabat per OPD dan masa tugas; admin teknis tidak otomatis menjadi penyetuju.
+- [x] Riwayat penilaian awal, target dan residual dengan salinan kebijakan.
+- [x] Pengajuan respons, persetujuan sesuai peran, eskalasi dan larangan persetujuan sendiri.
+- [x] Beberapa tindakan per risiko, PIC, tenggat, referensi bukti dan verifikasi efektivitas.
+- [x] Reviu Unit Kepatuhan/Inspektorat, tindak lanjut dan verifikasi penutupan.
+- [x] Detail risiko terpadu, pemantauan keterlambatan dan kebutuhan penilaian ulang setelah kejadian.
+- [x] Validasi OPD/tahun kejadian dan pencegahan penyalinan berulang ke Monitoring Event.
+- [x] Usulan kamus → reviu → publikasi; CRUD langsung master hanya admin.
+- [x] Analisis skenario fraud dengan akses terbatas UPR/Inspektorat.
+- [x] Laporan triwulanan/tahunan dengan snapshot tetap, persetujuan internal dan cetak PDF.
+- [x] Pemantauan lintas OPD dan kompilasi risiko strategis Pemda sesuai cakupan SSO.
+- [x] Pemeringkatan berdasarkan skor, area dampak, kategori dan keputusan pimpinan.
+- [x] Padanan cetak Form 7/8/9 aplikasi dengan Form 10/11/12 lampiran; README dan manual diselaraskan.
+- [x] Pengujian backend, PostgreSQL sementara, build frontend dan alur browser dengan data sintetis.
+
+Aktivasi operasional: jalankan ulang backend dan gunakan hasil build frontend, lalu isi penugasan berdasarkan SK serta ajukan/disahkan kebijakan resmi. Tidak ada penugasan atau keputusan kebijakan resmi yang diisi otomatis. Pengujian tidak mengubah database aplikasi.
+
+Batas implementasi: bukti berbentuk referensi dokumen; persetujuan merupakan pencatatan internal, belum TTE tersertifikasi/pengiriman laporan. Laporan menyimpan keadaan saat pengajuan dengan kejadian difilter per periode, bukan rekonstruksi otomatis keadaan akhir triwulan yang telah lewat.
+
+Batas Toleransi Risiko (Selera Risiko) masih hardcode, sekarang buat menu baru untuk menentukan Selera risiko. Selera risiko     adalah ambang batas besaran level risiko yang berada dalam area
+penerimaan risiko dan tidak perlu dilakukan kegiatan pengendalian. Selera risiko
+ditetapkan oleh masing-masing Pemilik Risiko.
+Pemilik Risiko menentukan selera risiko dengan mempertimbangkan semua
+sumber daya yang dimiliki oleh entitas atau unit kerja.
+Pilihan skala risiko untuk tingkat entitas dengan memilih angka dari 1 hingga nilai
+terbesar. Nilai terbesar tersebut akan ditentukan oleh skala risiko yang digunakan.
+Jika menggunakan skala 5 x 5, maka nilai selera risiko bisa dipilih antar 1 sampai
+dengan 25.
+
+
+
+Form 7 — RTP atas Risiko
+
+Tambahkan Opsi Status Kegiatan Pengendalian : 
+1. Sudah ada kegiatan pengendalian 
+2. Tidak ada Kegiatan Pengendalian 
+
+jika pilih Sudah ada kegiatan pengendalian, harus entri :
+- Uraian Pengendalian yang Sudah Ada
+- Unggah berkas / link
+- judul berkas
+
+Tambahkan field Respon Risiko, opsi :
+1. Mengurangi kemungkinan terjadinya Risiko
+2. Mengurangi dampak Risiko
+3. Membagi Risiko
+4. Menghindari Risiko
+5. Menerima Risiko
+
+field Target Waktu diganti menjadi datepicker
+
+sembunyikan Realisasi Waktu
+
+Form 8 — Informasi & Komunikasi
+Pada tampilan tabel, sudah tersedia data Kegiatan Pengendalian dari Respon Risiko (RTP) 
+User hanya menambahkan data pada form:
+- Media/Bentuk Sarana 
+- Penyedia Informasi
+- Penerima Informasi
+- Rencana Waktu (datepicker dari tanggal sampai tanggal)
+- Keterangan
+
+Form 9 — Rencana Pemantauan PI
+Pada tampilan tabel, sudah tersedia data Kegiatan Pengendalian dari Respon Risiko (RTP) 
+User hanya menambahkan data pada form:
+- Bentuk/Metode Pemantauan
+- Penanggung Jawab
+- Rencana Waktu (datepicker dari tanggal sampai tanggal)
+- Keterangan
+
+Status: Selesai diimplementasikan.
+- Backend `tr_monitoring_pi` tersinkronisasi otomatis dengan RTP Form 7 (`rencana_tindak`), kolom `risiko_id`, `rencana_mulai`, dan `rencana_selesai`.
+- Frontend Form9.vue menampilkan tabel RTP dan modal dialog form entri.
+
+### Penggabungan Respon Risiko (RTP), Form 8 — Informasi & Komunikasi, dan Form 9 — Rencana Pemantauan PI
+- **Tampilan Terpadu (Form 7 / Respon Risiko)**:
+  - Tabel menampilkan risiko prioritas beserta ringkasan Respon Risiko (RTP), Informasi & Komunikasi, serta Rencana Pemantauan PI.
+  - Kolom **Aksi** pada tabel menggunakan dropdown popup menu (`PrimeVue Menu`):
+    - `Respon Risiko`: membuka dialog modal pengisian Respon Risiko (RTP)
+    - `Informasi & Komunikasi`: membuka dialog modal pengisian Form 8 (Media/Bentuk Sarana, Penyedia Informasi, Penerima Informasi, Rencana Waktu range, Keterangan)
+    - `Rencana Pemantauan PI`: membuka dialog modal pengisian Form 9 (Bentuk/Metode Pemantauan, Penanggung Jawab, Rencana Waktu range, Keterangan)
+- **Sinkronisasi Backend & Database**:
+  - `GET /risiko/rtp` memuat data gabungan `rtp`, `infokom`, dan `monitoring_pi` per risiko prioritas dalam satu panggilan.
+  - Form dialog masing-masing terhubung ke API backend (`/risiko/rtp`, `/monitoring/infokom`, `/monitoring/pi`) sehingga data tersimpan ke tabel `tr_infokom` dan `tr_monitoring_pi` untuk kompatibilitas cetak & laporan.
+- **Navigasi & Routing**:
+  - Rute `/form8` dan `/form9` dialihkan (redirect) ke `/form7`, dan menu sidebar disederhanakan.
+- **Revamp Tampilan (UI/UX Visual Excellence)**:
+  - Hero banner bergradasi modern dengan deskripsi jelas dan tombol aksi segarkan data.
+  - Kartu KPI ringkasan progres kelengkapan: Total Risiko Prioritas, RTP Terisi, Info & Komunikasi Terisi, dan Pemantauan PI Terisi dengan indikator persentase penyelesaian.
+  - Toolbar pencarian interaktif instan (kode, uraian, pemilik, tindak lanjut, media, metode) dan filter multi-status (Semua, Perlu Dilengkapi, Lengkap 3/3, atau per formulir).
+  - Tabel terpadu dengan tipografi modern, badge kode & jenis risiko, level risiko berwarna standar, serta kartu status ringkas untuk Form 8 dan Form 9.
+  - Shortcut langsung pada tabel (tombol dashed "+ Isi") serta menu dropdown "Aksi" pada setiap baris.
+  - Desain modal dialog bertema khusus (RTP = Indigo, Form 8 = Teal, Form 9 = Purple) dilengkapi konteks risiko prioritas di bagian atas.
+- Status: **Selesai diimplementasikan dan direvamp penuh**.

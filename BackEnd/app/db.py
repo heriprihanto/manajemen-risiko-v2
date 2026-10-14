@@ -9,6 +9,14 @@ engine = create_engine(settings.database_url, echo=False, pool_pre_ping=True)
 # Kolom yang ditambahkan setelah tabel pertama kali dibuat. create_all tidak
 # mengubah tabel yang sudah ada, jadi terapkan lewat ALTER idempotent.
 _COLUMN_MIGRATIONS = (
+    "ALTER TABLE tr_rtp_risiko ADD COLUMN IF NOT EXISTS target_mulai date",
+    "ALTER TABLE tr_rtp_risiko ADD COLUMN IF NOT EXISTS target_selesai date",
+    "ALTER TABLE tr_rtp_risiko ADD COLUMN IF NOT EXISTS status_pengendalian varchar",
+    "ALTER TABLE tr_rtp_risiko ADD COLUMN IF NOT EXISTS respon_risiko varchar",
+    "ALTER TABLE tr_rtp_risiko ADD COLUMN IF NOT EXISTS bukti_judul varchar",
+    "ALTER TABLE tr_rtp_risiko ADD COLUMN IF NOT EXISTS bukti_link varchar",
+    "ALTER TABLE tr_rtp_risiko ADD COLUMN IF NOT EXISTS bukti_berkas_id integer REFERENCES tr_rtp_bukti(id)",
+    "ALTER TABLE tr_rtp_risiko ADD COLUMN IF NOT EXISTS bukti_nama varchar",
     "ALTER TABLE tr_cee_responden ADD COLUMN IF NOT EXISTS kategori_jabatan varchar",
     "ALTER TABLE tr_cee_responden ADD COLUMN IF NOT EXISTS whatsapp_invited_at timestamp",
     "ALTER TABLE tr_cee_responden ADD COLUMN IF NOT EXISTS nip varchar",
@@ -28,6 +36,12 @@ _COLUMN_MIGRATIONS = (
     "ALTER TABLE tr_pengaturan ADD COLUMN IF NOT EXISTS template_email_subject varchar",
     "ALTER TABLE tr_pengaturan ADD COLUMN IF NOT EXISTS template_email text",
     "ALTER TABLE tr_pengaturan ADD COLUMN IF NOT EXISTS template_wa text",
+    "ALTER TABLE tr_infokom ADD COLUMN IF NOT EXISTS risiko_id integer REFERENCES tr_risiko(id)",
+    "ALTER TABLE tr_infokom ADD COLUMN IF NOT EXISTS rencana_mulai date",
+    "ALTER TABLE tr_infokom ADD COLUMN IF NOT EXISTS rencana_selesai date",
+    "ALTER TABLE tr_monitoring_pi ADD COLUMN IF NOT EXISTS risiko_id integer REFERENCES tr_risiko(id)",
+    "ALTER TABLE tr_monitoring_pi ADD COLUMN IF NOT EXISTS rencana_mulai date",
+    "ALTER TABLE tr_monitoring_pi ADD COLUMN IF NOT EXISTS rencana_selesai date",
 )
 
 

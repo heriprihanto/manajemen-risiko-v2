@@ -39,9 +39,9 @@ const sections = [
   { key: 'f3c', form: 'Form 3.c', label: 'Identifikasi Risiko Operasional OPD' },
   { key: 'f4', form: 'Form 4', label: 'Analisis Risiko' },
   { key: 'f5', form: 'Form 5', label: 'Daftar Risiko Prioritas' },
-  { key: 'f7', form: 'Form 7', label: 'RTP atas Risiko' },
-  { key: 'f8', form: 'Form 8', label: 'Informasi & Komunikasi' },
-  { key: 'f9', form: 'Form 9', label: 'Rencana Pemantauan PI' },
+  { key: 'f7', form: 'Form 10 Perwal / Form 7 aplikasi', label: 'RTP atas Risiko' },
+  { key: 'f8', form: 'Form 11 Perwal / Form 8 aplikasi', label: 'Informasi & Komunikasi' },
+  { key: 'f9', form: 'Form 12 Perwal / Form 9 aplikasi', label: 'Rencana Pemantauan PI' },
   { key: 'f10', form: 'Form 10', label: 'Monitoring Risk Event & RTP' },
 ]
 // Bila dibuka dari tombol "Cetak" sebuah modul (?form=<key>), batasi laporan

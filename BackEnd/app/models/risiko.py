@@ -1,6 +1,7 @@
 """Identifikasi & analisis risiko — Form 3a/3b/3c, Form 4, Form 5, Form 7."""
-from datetime import datetime
+from datetime import date, datetime
 
+from sqlalchemy import Column, LargeBinary
 from sqlmodel import Field, SQLModel
 
 from app.core.datetime_utils import now_wib
@@ -58,7 +59,7 @@ class Risiko(SQLModel, table=True):
 
 
 class AnalisisRisiko(SQLModel, table=True):
-    """Form 4 — hasil analisis risiko (skala dampak x kemungkinan)."""
+    """Form 4 — hasil penilaian awal menggunakan tabel matriks Perwal 1/2026."""
     __tablename__ = "tr_analisis_risiko"
 
     id: int | None = Field(default=None, primary_key=True)
@@ -76,11 +77,31 @@ class RtpRisiko(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     risiko_id: int = Field(foreign_key="tr_risiko.id", index=True, unique=True)
+    status_pengendalian: str | None = None
+    respon_risiko: str | None = None
+    bukti_judul: str | None = None
+    bukti_link: str | None = None
+    bukti_berkas_id: int | None = Field(default=None, foreign_key="tr_rtp_bukti.id")
+    bukti_nama: str | None = None
     pengendalian_ada: str | None = None
     celah_pengendalian: str | None = None
     rencana_tindak: str | None = None
     pemilik_penanggung_jawab: str | None = None
+    target_mulai: date | None = None
+    target_selesai: date | None = None
     target_waktu: str | None = None
     realisasi_waktu: str | None = None
     keterangan: str | None = None
     updated_at: datetime = Field(default_factory=now_wib)
+
+
+class RtpBukti(SQLModel, table=True):
+    """Berkas privat berversi; konten tidak disertakan dalam audit/snapshot RTP."""
+    __tablename__ = "tr_rtp_bukti"
+    id: int | None = Field(default=None, primary_key=True)
+    risiko_id: int = Field(foreign_key="tr_risiko.id", index=True)
+    nama: str
+    konten: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
+    ukuran: int
+    pembuat: str
+    created_at: datetime = Field(default_factory=now_wib)

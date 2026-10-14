@@ -26,7 +26,7 @@ const groups = computed(() => {
 
 <template>
   <section class="report-section">
-    <div class="report-formno">Form 9</div>
+    <div class="report-formno">Form 12 Perwal / Form 9 aplikasi</div>
     <div class="report-title">Rencana &amp; Realisasi Pemantauan atas Kegiatan Pengendalian</div>
     <div class="report-subtitle">{{ opdName }} — Tahun {{ tahun }}</div>
     <table class="rpt">

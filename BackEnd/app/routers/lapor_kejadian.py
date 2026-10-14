@@ -16,6 +16,7 @@ from app.models import (
     Risiko,
 )
 from app.services.firebase_auth import current_user as fb_user
+from app.models.tata_kelola import KejadianTautan
 
 router = APIRouter(tags=["lapor-kejadian"])
 
@@ -204,7 +205,7 @@ def update_status_approval(
     session: Session = Depends(get_session),
 ):
     """Validasi status laporan kejadian (Disetujui / Ditolak) oleh pengelola risiko."""
-    item = session.get(LaporKejadian, id)
+    item = session.exec(select(LaporKejadian).where(LaporKejadian.id == id).with_for_update()).first()
     if not item:
         raise HTTPException(404, "Laporan kejadian tidak ditemukan")
 
@@ -213,6 +214,14 @@ def update_status_approval(
     if not is_admin and item.opd_id not in allowed_opds:
         raise HTTPException(403, "Anda tidak memiliki akses ke OPD ini")
 
+    if body.risiko_id:
+        risk = session.get(Risiko, body.risiko_id)
+        if not risk or risk.opd_id != item.opd_id or risk.tahun != item.tahun:
+            raise HTTPException(422, "Risiko harus berasal dari OPD dan tahun laporan yang sama")
+    linked = session.exec(select(KejadianTautan).where(KejadianTautan.laporan_id == id)).first()
+    if linked and (body.risiko_id != item.risiko_id or body.status != "disetujui"):
+        raise HTTPException(409, "Laporan sudah menjadi kejadian terverifikasi; tautan dan status harus dipertahankan")
+    was_approved = item.status == "disetujui" and item.risiko_id == body.risiko_id
     item.status = body.status
     item.catatan_validasi = body.catatan_validasi
     item.risiko_id = body.risiko_id
@@ -222,24 +231,33 @@ def update_status_approval(
     item.updated_at = now_wib()
 
     # Jika disetujui dan dipilih salin ke Form 10 (Monitoring Risk Event)
-    if body.status == "disetujui" and body.salin_ke_form10 and body.risiko_id:
-        # Cek tanggal terjadi
-        tgl = None
+    if body.status == "disetujui" and body.salin_ke_form10 and body.risiko_id and not linked:
+        description = f"Tempat: {item.tempat}. Dilaporkan oleh: {item.nama_lengkap} ({item.no_hp})"
         try:
-            # Jika format YYYY-MM-DD
             tgl = datetime.strptime(item.waktu_kejadian[:10], "%Y-%m-%d").date()
-        except Exception:
+        except ValueError:
             tgl = now_wib().date()
-
-        event = MonitoringRiskEvent(
+        # Kenali salinan versi lama yang belum mempunyai baris tautan.
+        legacy = session.exec(select(MonitoringRiskEvent).where(
+            MonitoringRiskEvent.risiko_id == body.risiko_id,
+            MonitoringRiskEvent.tanggal_terjadi == tgl,
+            MonitoringRiskEvent.sebab_kejadian == item.pemicu,
+            MonitoringRiskEvent.dampak_kejadian == item.uraian_kejadian,
+            MonitoringRiskEvent.keterangan_kejadian == description,
+        )).all() if was_approved else []
+        if len(legacy) > 1:
+            raise HTTPException(409, "Terdapat beberapa salinan kejadian lama; periksa duplikasi sebelum menautkan")
+        event = legacy[0] if legacy else MonitoringRiskEvent(
             risiko_id=body.risiko_id,
             tanggal_terjadi=tgl,
             sebab_kejadian=item.pemicu,
             dampak_kejadian=item.uraian_kejadian,
-            keterangan_kejadian=f"Tempat: {item.tempat}. Dilaporkan oleh: {item.nama_lengkap} ({item.no_hp})",
+            keterangan_kejadian=description,
             updated_at=now_wib(),
         )
         session.add(event)
+        session.flush()
+        session.add(KejadianTautan(laporan_id=id, event_id=event.id))
 
     session.add(item)
     session.commit()
@@ -267,6 +285,8 @@ def delete_approval_kejadian(
     if not is_admin and item.opd_id not in allowed_opds:
         raise HTTPException(403, "Anda tidak memiliki akses ke OPD ini")
 
+    if session.exec(select(KejadianTautan).where(KejadianTautan.laporan_id == id)).first():
+        raise HTTPException(409, "Laporan sudah ditautkan ke kejadian; riwayat harus dipertahankan")
     session.delete(item)
     session.commit()
     return {"status": "success", "message": "Laporan kejadian berhasil dihapus"}
