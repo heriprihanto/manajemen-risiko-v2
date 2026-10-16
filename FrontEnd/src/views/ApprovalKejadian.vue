@@ -216,85 +216,86 @@ async function copyPublicUrl() {
 
 <template>
   <div class="approval-page">
-    <!-- Header Card -->
-    <div class="page-header-card">
+    <!-- Header Section -->
+    <div class="page-header">
       <div class="header-left">
-        <div class="icon-wrap">
+        <div class="header-icon-box">
           <i class="pi pi-check-circle" />
         </div>
         <div>
           <h1 class="page-title">Approval Kejadian Risiko</h1>
-          <p class="page-subtitle">
-            Validasi dan tindak lanjut laporan kejadian risiko yang dikirim oleh seluruh pegawai OPD melalui saluran Lapor Kejadian.
+          <p class="page-desc">
+            Validasi dan tindak lanjut laporan kejadian risiko yang dikirim oleh seluruh pegawai OPD melalui saluran Lapor Kejadian
           </p>
         </div>
       </div>
-      <div class="header-right">
+      <div class="header-actions">
         <Button
           label="Buka Lapor Kejadian (Publik)"
           icon="pi pi-external-link"
           severity="info"
-          outlined
+          variant="outlined"
           @click="openPublicForm"
         />
         <Button
           label="Salin Tautan"
           icon="pi pi-copy"
           severity="secondary"
-          outlined
+          variant="outlined"
           @click="copyPublicUrl"
         />
         <Button
-          label="Segarkan Data"
+          label="Segarkan"
           icon="pi pi-refresh"
           severity="secondary"
-          outlined
+          variant="outlined"
           :loading="loading"
           @click="loadData"
         />
       </div>
     </div>
 
-    <!-- Stat Metrics Cards -->
-    <div class="stats-grid">
-      <div class="stat-card" :class="{ active: statusFilter === 'all' }" @click="statusFilter = 'all'">
-        <div class="stat-icon-box total">
-          <i class="pi pi-inbox" />
-        </div>
-        <div class="stat-info">
-          <span class="stat-val">{{ stats.total }}</span>
-          <span class="stat-lbl">Total Laporan Masuk</span>
-        </div>
+
+    <!-- Stat Metrics Cards (Style Laporan Rekapitulasi) -->
+    <div class="stat-grid no-print" style="margin-bottom: 20px;">
+      <div
+        class="stat"
+        :class="{ 'stat-active': statusFilter === 'all' }"
+        style="cursor: pointer;"
+        @click="statusFilter = 'all'"
+      >
+        <div class="v">{{ stats.total }}</div>
+        <div class="l">Total Laporan Masuk</div>
       </div>
 
-      <div class="stat-card" :class="{ active: statusFilter === 'pending' }" @click="statusFilter = 'pending'">
-        <div class="stat-icon-box pending">
-          <i class="pi pi-clock" />
-        </div>
-        <div class="stat-info">
-          <span class="stat-val text-warn">{{ stats.pending }}</span>
-          <span class="stat-lbl">Menunggu Validasi</span>
-        </div>
+      <div
+        class="stat"
+        :class="{ 'stat-active': statusFilter === 'pending' }"
+        style="cursor: pointer;"
+        @click="statusFilter = 'pending'"
+      >
+        <div class="v" style="color: #d97706;">{{ stats.pending }}</div>
+        <div class="l">Menunggu Validasi</div>
       </div>
 
-      <div class="stat-card" :class="{ active: statusFilter === 'disetujui' }" @click="statusFilter = 'disetujui'">
-        <div class="stat-icon-box approved">
-          <i class="pi pi-check" />
-        </div>
-        <div class="stat-info">
-          <span class="stat-val text-success">{{ stats.approved }}</span>
-          <span class="stat-lbl">Laporan Disetujui</span>
-        </div>
+      <div
+        class="stat"
+        :class="{ 'stat-active': statusFilter === 'disetujui' }"
+        style="cursor: pointer;"
+        @click="statusFilter = 'disetujui'"
+      >
+        <div class="v" style="color: #059669;">{{ stats.approved }}</div>
+        <div class="l">Laporan Disetujui</div>
       </div>
 
-      <div class="stat-card" :class="{ active: statusFilter === 'ditolak' }" @click="statusFilter = 'ditolak'">
-        <div class="stat-icon-box rejected">
-          <i class="pi pi-times" />
-        </div>
-        <div class="stat-info">
-          <span class="stat-val text-danger">{{ stats.rejected }}</span>
-          <span class="stat-lbl">Laporan Ditolak</span>
-        </div>
+      <div
+        class="stat"
+        :class="{ 'stat-active': statusFilter === 'ditolak' }"
+        style="cursor: pointer;"
+        @click="statusFilter = 'ditolak'"
+      >
+        <div class="v" style="color: #dc2626;">{{ stats.rejected }}</div>
+        <div class="l">Laporan Ditolak</div>
       </div>
     </div>
 
@@ -561,138 +562,55 @@ async function copyPublicUrl() {
   margin: 0 auto;
 }
 
-.page-header-card {
+/* Page Header */
+.page-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1.25rem;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-  color: #fff;
-  padding: 1.75rem 2rem;
-  border-radius: 14px;
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+  align-items: center;
   margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-}
-
-.icon-wrap {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.75rem;
-  color: #38bdf8;
-}
-
-.page-title {
-  margin: 0 0 0.35rem;
-  font-size: 1.6rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.page-subtitle {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.95rem;
-  max-width: 720px;
-  line-height: 1.45;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
-  margin-bottom: 1.5rem;
 }
 
-.stat-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  border-color: #94a3b8;
-}
-
-.stat-card.active {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px #2563eb;
-}
-
-.stat-icon-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+.header-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
 }
 
-.stat-icon-box.total {
-  background: #f1f5f9;
-  color: #475569;
-}
-.stat-icon-box.pending {
-  background: #fef3c7;
-  color: #d97706;
-}
-.stat-icon-box.approved {
-  background: #dcfce7;
-  color: #16a34a;
-}
-.stat-icon-box.rejected {
-  background: #fee2e2;
-  color: #dc2626;
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
 }
 
-.stat-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-val {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #1e293b;
-  line-height: 1.1;
-}
-
-.stat-lbl {
-  font-size: 0.8rem;
+.page-desc {
   color: #64748b;
-  font-weight: 500;
+  font-size: 0.875rem;
+  margin: 0;
 }
 
-.text-warn {
-  color: #d97706;
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
-.text-success {
-  color: #16a34a;
-}
-.text-danger {
-  color: #dc2626;
-}
+
 
 .card {
   background: #ffffff;

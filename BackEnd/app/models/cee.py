@@ -1,5 +1,5 @@
 """CEE (Control Environment Evaluation) — Form 1.a, 1.b, 1.c, Form 6."""
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlmodel import Field, SQLModel
 
@@ -99,6 +99,8 @@ class RtpCee(SQLModel, table=True):
     celah_pengendalian: str | None = None
     rencana_tindak: str | None = None
     pemilik_penanggung_jawab: str | None = None
+    target_mulai: date | None = None
+    target_selesai: date | None = None
     target_waktu: str | None = None
     realisasi_waktu: str | None = None
     keterangan: str | None = None

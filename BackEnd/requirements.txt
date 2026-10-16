@@ -9,6 +9,7 @@ fastapi==0.140.0
 greenlet==3.5.4
 h11==0.16.0
 httptools==0.8.0
+httpx==0.28.1
 idna==3.18
 openpyxl==3.1.5
 python-docx==1.2.0

@@ -127,17 +127,16 @@ async function generateDocx() {
 
 <template>
   <div class="generate-rtp-page">
-    <!-- Header Page -->
-    <div class="header-card">
+    <!-- Header Section -->
+    <div class="page-header">
       <div class="header-left">
-        <div class="icon-wrap">
+        <div class="header-icon-box">
           <i class="pi pi-file-word" />
         </div>
         <div>
           <h1 class="page-title">Generate Dokumen RTP</h1>
-          <p class="page-subtitle">
-            Penyusunan Rencana Tindak Pengendalian (RTP) Resmi format Microsoft Word (.docx) berbasis template docxtpl
-            dilengkapi seluruh Lampiran Form 1.a sampai Form 10.
+          <p class="page-desc">
+            Penyusunan Rencana Tindak Pengendalian (RTP) format Word (.docx) berbasis template resmi dengan seluruh lampiran
           </p>
         </div>
       </div>
@@ -145,14 +144,14 @@ async function generateDocx() {
         <Button
           label="Generate Dokumen Word (.docx)"
           icon="pi pi-download"
-          size="large"
-          class="btn-generate-main"
+          severity="primary"
           :loading="generating"
           :disabled="loading || (!includeMainDoc && !selectedForms.length)"
           @click="generateDocx"
         />
       </div>
     </div>
+
 
     <AppLoader v-if="loading" label="Memuat profil dan konteks dokumen…" />
 
@@ -361,53 +360,55 @@ async function generateDocx() {
   margin: 0 auto;
 }
 
-.header-card {
+/* Page Header */
+.page-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
-  color: #fff;
-  padding: 1.75rem 2rem;
-  border-radius: 14px;
-  box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.25);
+  align-items: center;
   margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
-.icon-wrap {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
+.header-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.75rem;
-  color: #fff;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
 .page-title {
-  margin: 0 0 0.35rem;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
   letter-spacing: -0.02em;
 }
 
-.page-subtitle {
+.page-desc {
+  color: #64748b;
+  font-size: 0.875rem;
   margin: 0;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.95rem;
-  max-width: 720px;
-  line-height: 1.45;
 }
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
 
 .btn-generate-main {
   background: #ffffff !important;

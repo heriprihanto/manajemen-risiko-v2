@@ -99,9 +99,43 @@ class RtpBukti(SQLModel, table=True):
     """Berkas privat berversi; konten tidak disertakan dalam audit/snapshot RTP."""
     __tablename__ = "tr_rtp_bukti"
     id: int | None = Field(default=None, primary_key=True)
-    risiko_id: int = Field(foreign_key="tr_risiko.id", index=True)
+    risiko_id: int | None = Field(default=None, foreign_key="tr_risiko.id", index=True)
+    rtp_cee_id: int | None = Field(default=None, foreign_key="tr_rtp_cee.id", index=True)
     nama: str
     konten: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
     ukuran: int
     pembuat: str
     created_at: datetime = Field(default_factory=now_wib)
+
+
+class TreatedRisk(SQLModel, table=True):
+    """Tingkat risiko setelah adanya kegiatan pengendalian terpasang dan RTP (Treated Risk)."""
+    __tablename__ = "tr_treated_risk"
+
+    id: int | None = Field(default=None, primary_key=True)
+    risiko_id: int = Field(foreign_key="tr_risiko.id", index=True, unique=True)
+    dampak_treated: int | None = None          # 1..5
+    kemungkinan_treated: int | None = None     # 1..5
+    skala_treated: float | None = None         # 1..25 berdasarkan Matriks 5x5
+    justifikasi: str | None = None             # Dasar pertimbangan & justifikasi koreksi nilai
+    updated_at: datetime = Field(default_factory=now_wib)
+    updated_by: str | None = None
+
+
+class RealisasiRtp(SQLModel, table=True):
+    """Realisasi Rencana Tindak Pengendalian (RTP) beserta tanggal dan berkas bukti dukung."""
+    __tablename__ = "tr_realisasi_rtp"
+
+    id: int | None = Field(default=None, primary_key=True)
+    risiko_id: int | None = Field(default=None, foreign_key="tr_risiko.id", index=True)
+    rtp_cee_id: int | None = Field(default=None, foreign_key="tr_rtp_cee.id", index=True)
+    status_realisasi: str = Field(default="belum")  # "belum", "proses", "selesai"
+    tanggal_realisasi: date | None = None
+    uraian_hasil: str | None = None
+    hambatan: str | None = None
+    bukti_berkas_id: int | None = Field(default=None, foreign_key="tr_rtp_bukti.id")
+    bukti_nama: str | None = None
+    bukti_link: str | None = None
+    updated_at: datetime = Field(default_factory=now_wib)
+    updated_by: str | None = None
+

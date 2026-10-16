@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { formatDate } from '@/utils/date'
 
 const props = defineProps({ data: { type: Array, default: () => [] }, opdName: String, tahun: [Number, String] })
 
@@ -26,8 +27,9 @@ const grouped = computed(() => {
           <tr><td class="c"></td><td colspan="5"><b>{{ g.aspek }}</b></td></tr>
           <tr v-for="(r, i) in g.items" :key="r.id">
             <td class="c">{{ r.no_urut || i + 1 }}</td><td>{{ r.kondisi_kerentanan }}</td><td>{{ r.rencana_tindak }}</td>
-            <td>{{ r.pemilik_penanggung_jawab }}</td><td>{{ r.target_waktu }}</td><td>{{ r.realisasi_waktu }}</td>
+            <td>{{ r.pemilik_penanggung_jawab }}</td><td>{{ formatDate(r.target_waktu) }}</td><td>{{ formatDate(r.realisasi_waktu) }}</td>
           </tr>
+
         </template>
         <tr v-if="!data || !data.length"><td colspan="6" class="c">Belum ada data</td></tr>
       </tbody>

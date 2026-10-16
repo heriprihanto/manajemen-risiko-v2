@@ -16,11 +16,11 @@ export function normalizeIsoToWib(iso) {
 
 /**
  * Format datetime ke standar bahasa Indonesia dengan zona waktu Asia/Jakarta (WIB).
- * Contoh output: "16 Sep 2026, 16.10 WIB" atau "16 September 2026 pukul 16.10 WIB".
+ * Contoh output: "12 Jan 2027, 16.10 WIB".
  */
 export function formatDateTime(
   val,
-  { dateStyle = 'medium', timeStyle = 'short', withSuffix = true } = {},
+  { withSuffix = true } = {},
 ) {
   if (!val) return '—'
   try {
@@ -29,8 +29,12 @@ export function formatDateTime(
     if (isNaN(d.getTime())) return String(val)
     const formatted = d.toLocaleString('id-ID', {
       timeZone: 'Asia/Jakarta',
-      dateStyle,
-      timeStyle,
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
     })
     return withSuffix ? `${formatted} WIB` : formatted
   } catch {
@@ -44,9 +48,9 @@ export function formatDateTime(
 export function parseDateOnly(str) {
   if (!str) return null
   if (str instanceof Date) return str
-  const s = String(str).slice(0, 10)
+  const s = String(str).trim().slice(0, 10)
   const parts = s.split('-')
-  if (parts.length === 3) {
+  if (parts.length === 3 && parts[0].length === 4) {
     const y = parseInt(parts[0], 10)
     const m = parseInt(parts[1], 10) - 1
     const d = parseInt(parts[2], 10)
@@ -68,12 +72,25 @@ export function toDateOnlyString(date) {
 }
 
 /**
- * Memformat string 'YYYY-MM-DD' atau Date ke format tanggal lokal Indonesia.
- * Contoh output: "16 September 2026".
+ * Memformat string 'YYYY-MM-DD', rentang tanggal, atau Date ke format tanggal Indonesia: "12 Jan 2027".
  */
-export function formatDate(val, { dateStyle = 'long' } = {}) {
+export function formatDate(val) {
   if (!val) return '—'
+  const str = String(val).trim()
+  if (str.includes(' s.d. ')) {
+    const [start, end] = str.split(' s.d. ')
+    return `${formatDate(start)} s.d. ${formatDate(end)}`
+  }
+  if (str.includes(' - ') && /^\d{4}-\d{2}-\d{2}\s*-\s*\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [start, end] = str.split(' - ')
+    return `${formatDate(start)} - ${formatDate(end)}`
+  }
   const d = parseDateOnly(val)
   if (!d || isNaN(d.getTime())) return String(val)
-  return d.toLocaleDateString('id-ID', { dateStyle })
+  return d.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }
+

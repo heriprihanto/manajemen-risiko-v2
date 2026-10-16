@@ -23,6 +23,28 @@ const AppPreset = definePreset(Aura, {
       800: '#3730a3', 900: '#312e81', 950: '#1e1b4b',
     },
   },
+  components: {
+    datatable: {
+      headerCell: {
+        background: '#f8fafc',
+        borderColor: '#e2e8f0',
+        color: '#1e293b',
+      },
+      bodyCell: {
+        borderColor: '#e2e8f0',
+      },
+      colorScheme: {
+        light: {
+          root: {
+            borderColor: '#e2e8f0',
+          },
+          row: {
+            stripedBackground: '#f8fafc',
+          },
+        },
+      },
+    },
+  },
 })
 
 const app = createApp(App)

@@ -2,8 +2,9 @@
 Matriks Risiko, Form 7 (RTP risiko)."""
 import base64
 import binascii
+import re
 from urllib.parse import quote
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from app.core.datetime_utils import now_wib
@@ -16,7 +17,19 @@ from sqlmodel import Session, func, select
 
 from app.core.security import UserDep, ensure_opd_access, guard_record
 from app.db import get_session
-from app.models import AnalisisRisiko, Opd, RefBidangUrusan, Risiko, RtpRisiko, MonitoringRiskEvent, Infokom, MonitoringPi
+from app.models import (
+    AnalisisRisiko,
+    Opd,
+    RealisasiRtp,
+    RefBidangUrusan,
+    Risiko,
+    RtpRisiko,
+    TreatedRisk,
+    MonitoringRiskEvent,
+    Infokom,
+    MonitoringPi,
+    RtpCee,
+)
 from app.models.kamus import KamusRisiko
 from app.models.risiko import (
     JENIS_OPERASIONAL_OPD,
@@ -555,11 +568,502 @@ def save_rtp(body: RtpInput, session: Session = Depends(get_session), user: dict
 
 @router.get("/rtp/{rid}/berkas/{bid}")
 def unduh_bukti(rid: int, bid: int, session: Session = Depends(get_session), user: dict = UserDep):
-    governance.risiko_akses(session, user, rid)
     evidence = session.get(RtpBukti, bid)
-    if not evidence or evidence.risiko_id != rid:
+    if not evidence:
         raise HTTPException(404, "Berkas bukti tidak ditemukan")
+    if evidence.risiko_id:
+        governance.risiko_akses(session, user, evidence.risiko_id)
+    elif evidence.rtp_cee_id:
+        cee = session.get(RtpCee, evidence.rtp_cee_id)
+        if cee:
+            governance.opd_akses(user, cee.opd_id)
     return Response(content=evidence.konten, media_type="application/octet-stream", headers={
         "Content-Disposition": "attachment; filename*=UTF-8''" + quote(evidence.nama, safe=""),
         "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store",
     })
+
+
+@router.get("/bukti/{bid}")
+def unduh_bukti_langsung(bid: int, session: Session = Depends(get_session), user: dict = UserDep):
+    return unduh_bukti(0, bid, session, user)
+
+
+# ------------------------------ Treated Risk ----------------------------------
+@router.get("/treated")
+def list_treated(opd_id: int, tahun: int, session: Session = Depends(get_session)):
+    """Daftar risiko beserta nilai inheren, RTP, dan Treated Risk."""
+    rows = list_risiko(opd_id, tahun, None, session)
+
+    saved_rtp_records = session.exec(
+        select(RtpRisiko).join(Risiko, RtpRisiko.risiko_id == Risiko.id)
+        .where(Risiko.opd_id == opd_id, Risiko.tahun == tahun)
+    ).all()
+    rtp_map = {rt.risiko_id: rt for rt in saved_rtp_records}
+
+    saved_treated = session.exec(
+        select(TreatedRisk).join(Risiko, TreatedRisk.risiko_id == Risiko.id)
+        .where(Risiko.opd_id == opd_id, Risiko.tahun == tahun)
+    ).all()
+    treated_map = {tr.risiko_id: tr for tr in saved_treated}
+
+    saved_realisasi = session.exec(
+        select(RealisasiRtp).join(Risiko, RealisasiRtp.risiko_id == Risiko.id)
+        .where(Risiko.opd_id == opd_id, Risiko.tahun == tahun)
+    ).all()
+    realisasi_map = {rel.risiko_id: rel for rel in saved_realisasi}
+
+    # Ambil selera risiko aktif OPD
+    policy_id, policy = governance.snapshot_kebijakan(session, opd_id, tahun)
+    ambang_selera = 10
+    if policy and policy.get("selera"):
+        ambang_selera = max(policy["selera"]) if isinstance(policy["selera"], list) and policy["selera"] else 10
+
+    out = []
+    for r in rows:
+        rt = rtp_map.get(r["id"])
+        tr = treated_map.get(r["id"])
+        rel = realisasi_map.get(r["id"])
+
+        an_data = r.get("analisis") or {}
+        inh_dampak = an_data.get("skala_dampak")
+        inh_kemungkinan = an_data.get("skala_kemungkinan")
+        inh_skala = an_data.get("skala_risiko")
+
+        tr_dampak = tr.dampak_treated if tr else None
+        tr_kemungkinan = tr.kemungkinan_treated if tr else None
+        tr_skala = tr.skala_treated if tr else None
+        tr_level = an.level_risiko(tr_skala) if tr_skala else None
+        tr_justifikasi = tr.justifikasi if tr else None
+
+        delta_skor = None
+        if inh_skala is not None and tr_skala is not None:
+            delta_skor = round(tr_skala - inh_skala, 1)
+
+        memenuhi_selera = None
+        if tr_skala is not None:
+            memenuhi_selera = tr_skala <= ambang_selera
+
+        out.append({
+            **r,
+            "rtp": rt.model_dump() if rt else None,
+            "realisasi": {
+                "id": rel.id if rel else None,
+                "status_realisasi": rel.status_realisasi if rel else "belum",
+                "tanggal_realisasi": rel.tanggal_realisasi.isoformat() if rel and rel.tanggal_realisasi else None,
+                "uraian_hasil": rel.uraian_hasil if rel else None,
+                "hambatan": rel.hambatan if rel else None,
+                "bukti_berkas_id": rel.bukti_berkas_id if rel else None,
+                "bukti_nama": rel.bukti_nama if rel else None,
+                "bukti_link": rel.bukti_link if rel else None,
+            } if rel else None,
+            "treated": {
+                "id": tr.id if tr else None,
+                "dampak_treated": tr_dampak,
+                "kemungkinan_treated": tr_kemungkinan,
+                "skala_treated": tr_skala,
+                "level_treated": tr_level,
+                "justifikasi": tr_justifikasi,
+                "delta_skor": delta_skor,
+                "memenuhi_selera": memenuhi_selera,
+                "updated_at": tr.updated_at.isoformat() if tr and tr.updated_at else None,
+                "updated_by": tr.updated_by if tr else None,
+            } if tr else None,
+        })
+
+    return {
+        "items": out,
+        "ambang_selera": ambang_selera,
+        "kriteria_dampak": an.DAMPAK_LABEL,
+        "kriteria_kemungkinan": an.KEMUNGKINAN_LABEL,
+        "matriks_skala": {
+            f"{k}-{d}": an.MATRIKS_SKALA.get((k, d))
+            for k in range(1, 6)
+            for d in range(1, 6)
+        },
+    }
+
+
+@router.post("/treated")
+def save_treated(
+    payload: dict[str, Any] = Body(...),
+    session: Session = Depends(get_session),
+    user: dict = UserDep,
+):
+    """Simpan atau perbarui penilaian Treated Risk atas risiko."""
+    risiko_id = payload.get("risiko_id")
+    if not risiko_id:
+        raise HTTPException(400, "risiko_id wajib diisi")
+
+    risiko = governance.risiko_akses(session, user, risiko_id, tulis=True)
+    dampak = payload.get("dampak_treated")
+    kemungkinan = payload.get("kemungkinan_treated")
+    justifikasi = (payload.get("justifikasi") or "").strip() or None
+
+    if dampak is not None and not (1 <= int(dampak) <= 5):
+        raise HTTPException(400, "Dampak treated harus bernilai antara 1 dan 5")
+    if kemungkinan is not None and not (1 <= int(kemungkinan) <= 5):
+        raise HTTPException(400, "Kemungkinan treated harus bernilai antara 1 dan 5")
+
+    dampak = int(dampak) if dampak is not None else None
+    kemungkinan = int(kemungkinan) if kemungkinan is not None else None
+    skala = an.hitung_skala(dampak, kemungkinan)
+
+    obj = session.exec(select(TreatedRisk).where(TreatedRisk.risiko_id == risiko.id)).first()
+    if not obj:
+        obj = TreatedRisk(risiko_id=risiko.id)
+
+    obj.dampak_treated = dampak
+    obj.kemungkinan_treated = kemungkinan
+    obj.skala_treated = skala
+    obj.justifikasi = justifikasi
+    obj.updated_at = now_wib()
+    obj.updated_by = user.get("username")
+    session.add(obj)
+
+    # Catat audit dan riwayat tata kelola jika penilaian lengkap
+    if dampak and kemungkinan and skala:
+        try:
+            evaluated = governance.nilai(session, risiko, dampak, kemungkinan)
+            history = PenilaianRiwayat(
+                risiko_id=risiko.id,
+                tahap="target",
+                dampak=dampak,
+                kemungkinan=kemungkinan,
+                skor=int(skala),
+                prioritas=evaluated.get("prioritas", False),
+                di_luar_toleransi=evaluated.get("di_luar_toleransi", False),
+                kebijakan_id=evaluated.get("kebijakan_id"),
+                kebijakan_snapshot=evaluated.get("kebijakan_snapshot", {}),
+                alasan=justifikasi or "Penilaian Treated Risk pasca-RTP",
+                pembuat=governance.identitas(user),
+            )
+            session.add(history)
+            governance.audit(session, user, obj, "treated_risk_dinilai", risiko.opd_id, risiko.tahun, risiko.id)
+        except Exception:
+            pass
+
+    session.commit()
+    session.refresh(obj)
+    return {
+        "id": obj.id,
+        "risiko_id": obj.risiko_id,
+        "dampak_treated": obj.dampak_treated,
+        "kemungkinan_treated": obj.kemungkinan_treated,
+        "skala_treated": obj.skala_treated,
+        "level_treated": an.level_risiko(obj.skala_treated),
+        "justifikasi": obj.justifikasi,
+        "updated_at": obj.updated_at.isoformat() if obj.updated_at else None,
+        "updated_by": obj.updated_by,
+    }
+
+
+# ------------------------------ Realisasi RTP ---------------------------------
+@router.get("/realisasi")
+def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_session)):
+    """Daftar rencana tindak pengendalian beserta status, tanggal, dan bukti dukung realisasinya."""
+    rows = list_risiko(opd_id, tahun, None, session)
+
+    saved_rtp_records = session.exec(
+        select(RtpRisiko).join(Risiko, RtpRisiko.risiko_id == Risiko.id)
+        .where(Risiko.opd_id == opd_id, Risiko.tahun == tahun)
+    ).all()
+    rtp_map = {rt.risiko_id: rt for rt in saved_rtp_records}
+
+    saved_realisasi = session.exec(
+        select(RealisasiRtp).join(Risiko, RealisasiRtp.risiko_id == Risiko.id)
+        .where(Risiko.opd_id == opd_id, Risiko.tahun == tahun)
+    ).all()
+    realisasi_map = {rel.risiko_id: rel for rel in saved_realisasi}
+
+    saved_treated = session.exec(
+        select(TreatedRisk).join(Risiko, TreatedRisk.risiko_id == Risiko.id)
+        .where(Risiko.opd_id == opd_id, Risiko.tahun == tahun)
+    ).all()
+    treated_map = {tr.risiko_id: tr for tr in saved_treated}
+
+    items = []
+    total_rtp = 0
+    selesai_cnt = 0
+    proses_cnt = 0
+    belum_cnt = 0
+
+    # 1. RTP Pengelolaan Risiko (Form 7)
+    for r in rows:
+        is_prioritas = r.get("analisis", {}).get("is_prioritas", False)
+        rt = rtp_map.get(r["id"])
+        # Fokuskan pada risiko prioritas atau yang memiliki rencana tindak pengendalian
+        if not is_prioritas and not rt:
+            continue
+
+        total_rtp += 1
+        rel = realisasi_map.get(r["id"])
+        tr = treated_map.get(r["id"])
+
+        status_realisasi = rel.status_realisasi if rel and rel.status_realisasi else "belum"
+        if status_realisasi == "selesai":
+            selesai_cnt += 1
+        elif status_realisasi == "proses":
+            proses_cnt += 1
+        else:
+            belum_cnt += 1
+
+        items.append({
+            **r,
+            "source_type": "risiko",
+            "risiko_id": r["id"],
+            "rtp_cee_id": None,
+            "rtp": rt.model_dump() if rt else None,
+            "realisasi": {
+                "id": rel.id if rel else None,
+                "status_realisasi": status_realisasi,
+                "tanggal_realisasi": rel.tanggal_realisasi.isoformat() if rel and rel.tanggal_realisasi else None,
+                "uraian_hasil": rel.uraian_hasil if rel else None,
+                "hambatan": rel.hambatan if rel else None,
+                "bukti_berkas_id": rel.bukti_berkas_id if rel else None,
+                "bukti_nama": rel.bukti_nama if rel else None,
+                "bukti_link": rel.bukti_link if rel else None,
+                "updated_at": rel.updated_at.isoformat() if rel and rel.updated_at else None,
+                "updated_by": rel.updated_by if rel else None,
+            } if rel else {
+                "id": None,
+                "status_realisasi": "belum",
+                "tanggal_realisasi": None,
+                "uraian_hasil": None,
+                "hambatan": None,
+                "bukti_berkas_id": None,
+                "bukti_nama": None,
+                "bukti_link": None,
+                "updated_at": None,
+                "updated_by": None,
+            },
+            "treated": {
+                "id": tr.id if tr else None,
+                "dampak_treated": tr.dampak_treated if tr else None,
+                "kemungkinan_treated": tr.kemungkinan_treated if tr else None,
+                "skala_treated": tr.skala_treated if tr else None,
+                "level_treated": an.level_risiko(tr.skala_treated) if tr and tr.skala_treated else None,
+            } if tr else None,
+        })
+
+    # 2. RTP atas CEE (Form 6)
+    cee_rows = session.exec(
+        select(RtpCee).where(RtpCee.opd_id == opd_id, RtpCee.tahun == tahun)
+        .order_by(RtpCee.no_urut, RtpCee.id)
+    ).all()
+
+    cee_realisasi = session.exec(
+        select(RealisasiRtp).join(RtpCee, RealisasiRtp.rtp_cee_id == RtpCee.id)
+        .where(RtpCee.opd_id == opd_id, RtpCee.tahun == tahun)
+    ).all()
+    cee_rel_map = {rel.rtp_cee_id: rel for rel in cee_realisasi}
+
+    for c in cee_rows:
+        total_rtp += 1
+        rel = cee_rel_map.get(c.id)
+
+        tgl_rel = rel.tanggal_realisasi.isoformat() if rel and rel.tanggal_realisasi else None
+        if not tgl_rel and c.realisasi_waktu and re.match(r"^\d{4}-\d{2}-\d{2}$", str(c.realisasi_waktu).strip()):
+            tgl_rel = str(c.realisasi_waktu).strip()
+
+        status_realisasi = rel.status_realisasi if rel and rel.status_realisasi else ("selesai" if tgl_rel else "belum")
+        if status_realisasi == "selesai":
+            selesai_cnt += 1
+        elif status_realisasi == "proses":
+            proses_cnt += 1
+        else:
+            belum_cnt += 1
+
+        items.append({
+            "id": f"cee-{c.id}",
+            "source_type": "cee",
+            "risiko_id": None,
+            "rtp_cee_id": c.id,
+            "opd_id": c.opd_id,
+            "tahun": c.tahun,
+            "jenis_risiko": "cee",
+            "kode_risiko": f"CEE-{c.no_urut or c.id}",
+            "uraian_risiko": c.kondisi_kerentanan or c.rencana_tindak or "Kelemahan Lingkungan Pengendalian",
+            "sasaran": c.aspek_cee or "Lingkungan Pengendalian Intern",
+            "pemilik_risiko": c.pemilik_penanggung_jawab or "Pimpinan OPD",
+            "analisis": {
+                "level": "CEE",
+                "is_prioritas": True,
+            },
+            "rtp": {
+                "id": c.id,
+                "rencana_tindak": c.rencana_tindak,
+                "target_waktu": c.target_waktu,
+                "target_mulai": c.target_mulai.isoformat() if c.target_mulai else None,
+                "target_selesai": c.target_selesai.isoformat() if c.target_selesai else None,
+                "pemilik_penanggung_jawab": c.pemilik_penanggung_jawab,
+                "aspek_cee": c.aspek_cee,
+                "kondisi_kerentanan": c.kondisi_kerentanan,
+            },
+            "realisasi": {
+                "id": rel.id if rel else None,
+                "status_realisasi": status_realisasi,
+                "tanggal_realisasi": tgl_rel,
+                "uraian_hasil": rel.uraian_hasil if rel else None,
+                "hambatan": rel.hambatan if rel else None,
+                "bukti_berkas_id": rel.bukti_berkas_id if rel else None,
+                "bukti_nama": rel.bukti_nama if rel else None,
+                "bukti_link": rel.bukti_link if rel else (c.realisasi_waktu if c.realisasi_waktu and str(c.realisasi_waktu).startswith("http") else None),
+                "updated_at": rel.updated_at.isoformat() if rel and rel.updated_at else None,
+                "updated_by": rel.updated_by if rel else None,
+            },
+            "treated": None,
+        })
+
+    persen_selesai = round((selesai_cnt / total_rtp * 100), 1) if total_rtp > 0 else 0
+
+    return {
+        "items": items,
+        "summary": {
+            "total": total_rtp,
+            "selesai": selesai_cnt,
+            "proses": proses_cnt,
+            "belum": belum_cnt,
+            "persen_selesai": persen_selesai,
+        },
+    }
+
+
+@router.post("/realisasi")
+def save_realisasi(
+    payload: dict[str, Any] = Body(...),
+    session: Session = Depends(get_session),
+    user: dict = UserDep,
+):
+    """Simpan status realisasi RTP, tanggal realisasi, dan unggah berkas bukti dukung."""
+    risiko_id = payload.get("risiko_id")
+    rtp_cee_id = payload.get("rtp_cee_id")
+
+    if not risiko_id and not rtp_cee_id:
+        raise HTTPException(400, "risiko_id atau rtp_cee_id wajib diisi")
+
+    risiko = None
+    rtp_cee = None
+    if risiko_id:
+        risiko = governance.risiko_akses(session, user, risiko_id, tulis=True)
+    elif rtp_cee_id:
+        rtp_cee = session.get(RtpCee, rtp_cee_id)
+        if not rtp_cee:
+            raise HTTPException(404, "Data RTP atas CEE tidak ditemukan")
+        ensure_opd_access(user, rtp_cee.opd_id)
+        governance.boleh_tulis(session, user, rtp_cee.opd_id)
+
+    status_realisasi = payload.get("status_realisasi") or "belum"
+    if status_realisasi not in {"belum", "proses", "selesai"}:
+        raise HTTPException(400, "status_realisasi harus 'belum', 'proses', atau 'selesai'")
+
+    tgl_str = payload.get("tanggal_realisasi")
+    tanggal_realisasi = None
+    if tgl_str:
+        try:
+            tanggal_realisasi = date.fromisoformat(str(tgl_str).split("T")[0])
+        except ValueError:
+            raise HTTPException(422, "Format tanggal realisasi tidak valid (gunakan YYYY-MM-DD)")
+
+    uraian_hasil = (payload.get("uraian_hasil") or "").strip() or None
+    hambatan = (payload.get("hambatan") or "").strip() or None
+    bukti_link = (payload.get("bukti_link") or "").strip() or None
+
+    bukti_upload = payload.get("bukti_upload")
+    bukti_berkas_id = payload.get("bukti_berkas_id")
+
+    evidence = None
+    if bukti_berkas_id:
+        evidence = session.get(RtpBukti, bukti_berkas_id)
+        if not evidence:
+            raise HTTPException(422, "Berkas bukti tidak ditemukan")
+        if risiko and evidence.risiko_id != risiko.id:
+            raise HTTPException(422, "Berkas bukti tidak berasal dari risiko ini")
+        if rtp_cee and evidence.rtp_cee_id != rtp_cee.id:
+            raise HTTPException(422, "Berkas bukti tidak berasal dari RTP CEE ini")
+
+    if bukti_upload and isinstance(bukti_upload, dict) and bukti_upload.get("base64"):
+        try:
+            content = base64.b64decode(bukti_upload["base64"], validate=True)
+        except (ValueError, binascii.Error):
+            raise HTTPException(422, "Berkas tidak valid")
+        if not content or len(content) > MAX_BUKTI:
+            raise HTTPException(422, "Berkas harus berisi data dan maksimal 5 MB")
+        name = (bukti_upload.get("nama") or "bukti_realisasi.pdf").replace("\\", "/").rsplit("/", 1)[-1]
+        name = "".join(c for c in name if c.isprintable()).strip()
+        if not name or name in {".", ".."}:
+            raise HTTPException(422, "Nama berkas tidak valid")
+        evidence = RtpBukti(
+            risiko_id=risiko.id if risiko else None,
+            rtp_cee_id=rtp_cee.id if rtp_cee else None,
+            nama=name,
+            konten=content,
+            ukuran=len(content),
+            pembuat=governance.identitas(user),
+        )
+        session.add(evidence)
+        session.flush()
+
+    if risiko:
+        obj = session.exec(select(RealisasiRtp).where(RealisasiRtp.risiko_id == risiko.id)).first()
+        if not obj:
+            obj = RealisasiRtp(risiko_id=risiko.id)
+    else:
+        obj = session.exec(select(RealisasiRtp).where(RealisasiRtp.rtp_cee_id == rtp_cee.id)).first()
+        if not obj:
+            obj = RealisasiRtp(rtp_cee_id=rtp_cee.id)
+
+    obj.status_realisasi = status_realisasi
+    obj.tanggal_realisasi = tanggal_realisasi
+    obj.uraian_hasil = uraian_hasil
+    obj.hambatan = hambatan
+    obj.bukti_link = bukti_link
+    if evidence:
+        obj.bukti_berkas_id = evidence.id
+        obj.bukti_nama = evidence.nama
+    elif payload.get("hapus_bukti"):
+        obj.bukti_berkas_id = None
+        obj.bukti_nama = None
+
+    obj.updated_at = now_wib()
+    obj.updated_by = user.get("username")
+    session.add(obj)
+
+    if risiko:
+        # Sinkronisasi ke RtpRisiko.realisasi_waktu
+        rtp_obj = session.exec(select(RtpRisiko).where(RtpRisiko.risiko_id == risiko.id)).first()
+        if rtp_obj and tanggal_realisasi:
+            rtp_obj.realisasi_waktu = tanggal_realisasi.isoformat()
+            session.add(rtp_obj)
+
+        # Sinkronisasi ke MonitoringPi jika ada
+        pi = session.exec(select(MonitoringPi).where(MonitoringPi.risiko_id == risiko.id)).first()
+        if pi and tanggal_realisasi:
+            pi.realisasi_waktu = tanggal_realisasi.isoformat()
+            session.add(pi)
+
+        governance.audit(session, user, obj, "realisasi_rtp_diperbarui", risiko.opd_id, risiko.tahun, risiko.id)
+    elif rtp_cee:
+        # Sinkronisasi ke RtpCee.realisasi_waktu
+        if tanggal_realisasi:
+            rtp_cee.realisasi_waktu = tanggal_realisasi.isoformat()
+            session.add(rtp_cee)
+        governance.audit(session, user, obj, "realisasi_rtp_cee_diperbarui", rtp_cee.opd_id, rtp_cee.tahun)
+
+    session.commit()
+    session.refresh(obj)
+
+    return {
+        "id": obj.id,
+        "risiko_id": obj.risiko_id,
+        "rtp_cee_id": obj.rtp_cee_id,
+        "status_realisasi": obj.status_realisasi,
+        "tanggal_realisasi": obj.tanggal_realisasi.isoformat() if obj.tanggal_realisasi else None,
+        "uraian_hasil": obj.uraian_hasil,
+        "hambatan": obj.hambatan,
+        "bukti_berkas_id": obj.bukti_berkas_id,
+        "bukti_nama": obj.bukti_nama,
+        "bukti_link": obj.bukti_link,
+        "updated_at": obj.updated_at.isoformat() if obj.updated_at else None,
+        "updated_by": obj.updated_by,
+    }
+

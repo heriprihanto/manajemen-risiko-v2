@@ -398,3 +398,37 @@ Status: Selesai diimplementasikan.
   - Shortcut langsung pada tabel (tombol dashed "+ Isi") serta menu dropdown "Aksi" pada setiap baris.
   - Desain modal dialog bertema khusus (RTP = Indigo, Form 8 = Teal, Form 9 = Purple) dilengkapi konteks risiko prioritas di bagian atas.
 - Status: **Selesai diimplementasikan dan direvamp penuh**.
+
+Buat Menu Baru Treated Risk
+Level Treated Risk adalah tingkat risiko setelah adanya kegiatan pengendalian. Jadi, nilai risiko melekat (inheren) yang kemudian nilainya bisa bergeser/berkurang apabila terdapat kegiatan pengendalian terpasang (existing control), nilainya akan kembali terkoreksi setelah adanya Rencana Tindak Pengendalian.
+
+Catatan :
+a.Pada saat menetapkan tingkat kemungkinan maupun dampak, agar disesuaikan dengan karakteristik Rencana Tindak Pengendalian (RTP), apakah RTР tersebut memiliki karakteristik mengurangi kemungkinan, mengurangi dampak atau mengurangi kemungkinan dan dampak.
+b.Selain itu, pastikan untuk melihat tabel dampak dan tabel kemungkinan yang ada dalam Kebijakan Manajemen Risiko masing-masing untuk membantu akurasi penetapan tingkat kemungkinan dan dampak setelah adanya RTP.
+
+Buat Menu Baru Realisasi RTP
+Apabila Rencana Tindak Pengendalian sudah direalisasikan, 
+maka unggah berkas bukti dukung pelaksanaan realisasi RTP dan isi tanggal realisasi
+
+
+
+Form entri Form 6 — RTP atas CEE
+field target waktu, ganti dengan datepicker dari tangal sampai tanggal
+sembunyikan field realisasi
+
+
+Realisasi Rencana Tindak Pengendalian (RTP), tambahkan juga data dari RTP atas CEE
+
+
+revamp semua tampilan data tabel supaya seragam, 
+tabel header #f8fafc, 
+border 1px solid #e2e8f0,
+stripped / zebra style 
+
+Status: **Selesai diimplementasikan secara menyeluruh**.
+- Preset tema PrimeVue (`AppPreset` di `main.js`) dikonfigurasi dengan `headerCell.background: #f8fafc`, `borderColor: #e2e8f0`, dan `row.stripedBackground: #f8fafc`.
+- Standar global CSS di `style.css` diterapkan secara authoritative:
+  - Seluruh PrimeVue DataTable (`.p-datatable`): header `#f8fafc` tebal (font-weight 600), seluruh border sel `1px solid #e2e8f0`, alternating zebra rows (`#ffffff` & `#f8fafc`), dan hover row highlight (`#f1f5f9`).
+  - Form HTML Grid Tables (`.grid-table` pada Form 1a, 1b, 1c, 4, 5, 10): header `#f8fafc`, border `1px solid #e2e8f0`, dan zebra rows.
+  - Rekapitulasi Tables (`.rekap-table` pada seluruh 7 komponen Rekapitulasi): header `#f8fafc`, border `1px solid #e2e8f0`, dan zebra rows.
+  - Table Wrappers & Reports (`.table-wrap table`, `table.rpt`, `table.history`): diseragamkan dengan header `#f8fafc`, border `1px solid #e2e8f0`, dan zebra rows. 

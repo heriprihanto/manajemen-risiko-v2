@@ -12,6 +12,7 @@ import { useToast } from 'primevue/usetoast'
 import api from '@/api'
 import { useContextStore } from '@/stores/context'
 import { statusPengendalian, responRisiko, statusLabel, responLabel } from '@/utils/rtp'
+import { formatDate } from '@/utils/date'
 
 const router = useRouter()
 const ctx = useContextStore()
@@ -40,6 +41,69 @@ const file = ref(null)
 const evidenceType = ref('link')
 const errorRtp = ref('')
 const legacyTarget = ref('')
+
+// AI RTP Suggestions state
+const aiSuggestingRtp = ref(false)
+const aiRtpSuggestions = ref([])
+const showAiRtpModal = ref(false)
+
+async function getAiRtpSuggestions() {
+  if (!selectedRow.value) return
+  aiSuggestingRtp.value = true
+  aiRtpSuggestions.value = []
+  showAiRtpModal.value = true
+  try {
+    const currentOpd = ctx.opds?.find((o) => o.id === ctx.opdId)
+    const { data } = await api.post('/ai/suggest-rtp', {
+      risk_data: {
+        uraian_risiko: selectedRow.value.uraian_risiko,
+        kode_risiko: selectedRow.value.kode_risiko,
+        level_risiko: selectedRow.value.analisis?.level || '',
+        pemilik_risiko: selectedRow.value.pemilik_risiko || '',
+        celah_pengendalian: editingRtp.value.celah_pengendalian || '',
+        pengendalian_ada: editingRtp.value.pengendalian_ada || '',
+      },
+      context: {
+        opd: currentOpd?.nama || '',
+        tahun: ctx.tahun || 2026,
+      },
+    })
+    aiRtpSuggestions.value = data.suggestions || []
+    if (!aiRtpSuggestions.value.length) {
+      toast.add({ severity: 'warn', summary: 'AI Saran RTP', detail: 'Tidak ada saran terstruktur yang dihasilkan.', life: 3000 })
+    }
+  } catch (e) {
+    const err = e.response?.data?.detail || e.message || 'Gagal memanggil AI'
+    toast.add({ severity: 'error', summary: 'AI Error', detail: err, life: 4000 })
+  } finally {
+    aiSuggestingRtp.value = false
+  }
+}
+
+function applyAiRtpSuggestion(sug) {
+  if (sug.respon_risiko) {
+    const found = responRisiko.find(
+      (r) =>
+        r.value === sug.respon_risiko ||
+        r.label.toLowerCase() === String(sug.respon_risiko).toLowerCase()
+    )
+    if (found) {
+      editingRtp.value.respon_risiko = found.value
+    } else {
+      editingRtp.value.respon_risiko = sug.respon_risiko
+    }
+  }
+  if (sug.rencana_tindak) {
+    editingRtp.value.rencana_tindak = sug.rencana_tindak
+  }
+  showAiRtpModal.value = false
+  toast.add({
+    severity: 'success',
+    summary: 'RTP Diterapkan',
+    detail: 'Saran AI telah diisikan ke formulir respon risiko.',
+    life: 2500,
+  })
+}
 
 // Dialog 2: Form 8 - Informasi & Komunikasi
 const dialogInfokom = ref(false)
@@ -480,7 +544,6 @@ watch(
 
 <template>
   <div class="rtp-container">
-    <!-- Header Hero Banner -->
     <!-- Header Section -->
     <div class="page-header">
       <div class="header-left">
@@ -490,65 +553,49 @@ watch(
         <div>
           <h1 class="page-title">Respon Risiko (RTP)</h1>
           <p class="page-desc">
-            
+            Rencana Tindak Pengendalian (Form 7), Informasi & Komunikasi (Form 8), dan Pemantauan Pengendalian Intern (Form 9)
           </p>
         </div>
       </div>
       <div class="header-actions">
-        
+        <Button
+          label="Segarkan"
+          icon="pi pi-refresh"
+          severity="secondary"
+          variant="outlined"
+          :loading="loading"
+          @click="load"
+        />
       </div>
     </div>
 
-    <!-- KPI / Progress Cards -->
-    <div class="kpi-grid">
-      <div class="kpi-card card-total">
-        <div class="kpi-icon-wrap">
-          <i class="pi pi-star-fill" />
-        </div>
-        <div class="kpi-data">
-          <div class="kpi-num">{{ kpi.total }}</div>
-          <div class="kpi-label">Total Risiko Prioritas</div>
-        </div>
-        <div class="kpi-sub muted text-xs">Penetapan Form 4/5</div>
+
+    <!-- Stat Cards Header (Style Laporan Rekapitulasi) -->
+    <div class="stat-grid no-print" style="margin-bottom: 18px;">
+      <div class="stat">
+        <div class="v">{{ kpi.total }}</div>
+        <div class="l">Total Risiko Prioritas (Form 4/5)</div>
       </div>
 
-      <div class="kpi-card card-rtp">
-        <div class="kpi-icon-wrap">
-          <i class="pi pi-shield" />
+      <div class="stat">
+        <div class="v">
+          {{ kpi.rtpCount }} <small>/ {{ kpi.total }}</small>
         </div>
-        <div class="kpi-data">
-          <div class="kpi-num">{{ kpi.rtpCount }} <span class="kpi-max">/ {{ kpi.total }}</span></div>
-          <div class="kpi-label">Respon Risiko (RTP)</div>
-        </div>
-        <div class="kpi-status-tag" :class="kpi.rtpCount === kpi.total && kpi.total > 0 ? 'tag-done' : 'tag-pending'">
-          {{ kpi.total > 0 ? Math.round((kpi.rtpCount / kpi.total) * 100) : 0 }}% Terisi
-        </div>
+        <div class="l">Respon Risiko (RTP)</div>
       </div>
 
-      <div class="kpi-card card-infokom">
-        <div class="kpi-icon-wrap">
-          <i class="pi pi-megaphone" />
+      <div class="stat">
+        <div class="v">
+          {{ kpi.infokomCount }} <small>/ {{ kpi.total }}</small>
         </div>
-        <div class="kpi-data">
-          <div class="kpi-num">{{ kpi.infokomCount }} <span class="kpi-max">/ {{ kpi.total }}</span></div>
-          <div class="kpi-label">Info & Komunikasi (F8)</div>
-        </div>
-        <div class="kpi-status-tag" :class="kpi.infokomCount === kpi.total && kpi.total > 0 ? 'tag-done' : 'tag-pending'">
-          {{ kpi.total > 0 ? Math.round((kpi.infokomCount / kpi.total) * 100) : 0 }}% Terisi
-        </div>
+        <div class="l">Info & Komunikasi (F8)</div>
       </div>
 
-      <div class="kpi-card card-pi">
-        <div class="kpi-icon-wrap">
-          <i class="pi pi-eye" />
+      <div class="stat">
+        <div class="v">
+          {{ kpi.piCount }} <small>/ {{ kpi.total }}</small>
         </div>
-        <div class="kpi-data">
-          <div class="kpi-num">{{ kpi.piCount }} <span class="kpi-max">/ {{ kpi.total }}</span></div>
-          <div class="kpi-label">Pemantauan PI (F9)</div>
-        </div>
-        <div class="kpi-status-tag" :class="kpi.piCount === kpi.total && kpi.total > 0 ? 'tag-done' : 'tag-pending'">
-          {{ kpi.total > 0 ? Math.round((kpi.piCount / kpi.total) * 100) : 0 }}% Terisi
-        </div>
+        <div class="l">Pemantauan PI (F9)</div>
       </div>
     </div>
 
@@ -727,7 +774,7 @@ watch(
 
               <div v-if="data.rtp?.target_waktu" class="target-chip">
                 <i class="pi pi-calendar" />
-                <span>{{ data.rtp.target_waktu }}</span>
+                <span>{{ formatDate(data.rtp.target_waktu) }}</span>
               </div>
             </div>
           </template>
@@ -746,7 +793,7 @@ watch(
                 <span>{{ data.infokom.penyedia_informasi || '—' }} → {{ data.infokom.penerima_informasi || '—' }}</span>
               </div>
               <div v-if="data.infokom.rencana_waktu" class="subform-time">
-                <i class="pi pi-clock" /> {{ data.infokom.rencana_waktu }}
+                <i class="pi pi-clock" /> {{ formatDate(data.infokom.rencana_waktu) }}
               </div>
             </div>
             <div v-else class="subform-empty" @click="openEditInfokom(data)">
@@ -771,7 +818,7 @@ watch(
                 <span>PJ: {{ data.monitoring_pi.penanggung_jawab }}</span>
               </div>
               <div v-if="data.monitoring_pi.rencana_waktu" class="subform-time">
-                <i class="pi pi-clock" /> {{ data.monitoring_pi.rencana_waktu }}
+                <i class="pi pi-clock" /> {{ formatDate(data.monitoring_pi.rencana_waktu) }}
               </div>
             </div>
             <div v-else class="subform-empty" @click="openEditPi(data)">
@@ -934,7 +981,18 @@ watch(
 
           <!-- Rencana Tindak Pengendalian (RTP) -->
           <div class="field-item">
-            <label for="rtp-plan" class="field-label">Rencana Tindak Pengendalian (RTP) <span class="req">*</span></label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label for="rtp-plan" class="field-label" style="margin-bottom: 0;">Rencana Tindak Pengendalian (RTP) <span class="req">*</span></label>
+              <Button
+                type="button"
+                label="Saran AI"
+                icon="pi pi-sparkles"
+                size="small"
+                severity="help"
+                text
+                @click="getAiRtpSuggestions"
+              />
+            </div>
             <Textarea
               id="rtp-plan"
               v-model="editingRtp.rencana_tindak"
@@ -1247,6 +1305,82 @@ watch(
         </div>
       </template>
     </Dialog>
+
+    <!-- Dialog AI RTP Suggestions -->
+    <Dialog
+      v-model:visible="showAiRtpModal"
+      header="AI Assistant — Rekomendasi Rencana Tindak Pengendalian (RTP)"
+      modal
+      :style="{ width: '680px', maxWidth: '95vw' }"
+      class="custom-dialog"
+    >
+      <div class="ai-rtp-body">
+        <div v-if="selectedRow" class="ai-rtp-context">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span class="badge-kode">{{ selectedRow.kode_risiko }}</span>
+            <span class="ai-rtp-level">{{ selectedRow.analisis?.level || 'Level Belum Ditetapkan' }}</span>
+          </div>
+          <p class="ai-rtp-uraian"><strong>Risiko:</strong> {{ selectedRow.uraian_risiko }}</p>
+          <p v-if="editingRtp.celah_pengendalian" class="ai-rtp-celah">
+            <strong>Celah:</strong> {{ editingRtp.celah_pengendalian }}
+          </p>
+        </div>
+
+        <div v-if="aiSuggestingRtp" class="ai-rtp-loading">
+          <i class="pi pi-spin pi-spinner text-2xl text-indigo-600 mb-2" />
+          <p>AI sedang menganalisis risiko dan celah pengendalian untuk merekomendasikan RTP terukur...</p>
+        </div>
+
+        <div v-else-if="aiRtpSuggestions.length > 0" class="ai-rtp-list">
+          <div
+            v-for="(sug, idx) in aiRtpSuggestions"
+            :key="idx"
+            class="ai-rtp-card"
+          >
+            <div class="ai-rtp-card-header">
+              <div class="ai-rtp-strategy">
+                <i class="pi pi-shield mr-1" />
+                <span>{{ responLabel(sug.respon_risiko) || sug.respon_risiko }}</span>
+              </div>
+              <Button
+                label="Terapkan Saran Ini"
+                icon="pi pi-check"
+                size="small"
+                severity="primary"
+                @click="applyAiRtpSuggestion(sug)"
+              />
+            </div>
+
+            <div class="ai-rtp-plan-box">
+              <strong>Rencana Tindak:</strong>
+              <p>{{ sug.rencana_tindak }}</p>
+            </div>
+
+            <div class="ai-rtp-sub-boxes">
+              <div v-if="sug.media_komunikasi" class="ai-rtp-sub-item">
+                <i class="pi pi-megaphone text-teal-600 mr-1" />
+                <small><strong>Media Info/Kom (F8):</strong> {{ sug.media_komunikasi }} ({{ sug.penyedia_informasi }} → {{ sug.penerima_informasi }})</small>
+              </div>
+              <div v-if="sug.metode_pemantauan" class="ai-rtp-sub-item">
+                <i class="pi pi-eye text-purple-600 mr-1" />
+                <small><strong>Pemantauan PI (F9):</strong> {{ sug.metode_pemantauan }} (PJ: {{ sug.penanggung_jawab_pemantauan }})</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <Button
+            label="Tutup"
+            severity="secondary"
+            variant="outlined"
+            @click="showAiRtpModal = false"
+          />
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -1309,168 +1443,6 @@ watch(
   width: 100%;
 }
 
-/* Hero Banner */
-.hero-banner {
-  background: linear-gradient(135deg, #1e1b4b 0%, #2e1065 50%, #1e293b 100%);
-  border-radius: var(--radius, 14px);
-  padding: 24px 28px;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  box-shadow: 0 10px 25px -5px rgba(30, 27, 75, 0.25);
-  position: relative;
-  overflow: hidden;
-}
-
-.hero-banner::after {
-  content: '';
-  position: absolute;
-  top: -40px;
-  right: -40px;
-  width: 180px;
-  height: 180px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.35) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(8px);
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #c4b5fd;
-  margin-bottom: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.hero-title {
-  margin: 0 0 6px 0;
-  font-size: 1.45rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: #ffffff;
-}
-
-.hero-desc {
-  margin: 0;
-  font-size: 0.88rem;
-  color: #cbd5e1;
-  max-width: 800px;
-  line-height: 1.45;
-}
-
-.btn-refresh {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.25) !important;
-  font-weight: 600;
-  border-radius: 8px;
-  padding: 0.5rem 1rem;
-  transition: all 0.2s ease;
-}
-
-.btn-refresh:hover {
-  background: rgba(255, 255, 255, 0.2) !important;
-  border-color: rgba(255, 255, 255, 0.4) !important;
-}
-
-/* KPI Cards */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-}
-
-@media (max-width: 1024px) {
-  .kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .kpi-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.kpi-card {
-  background: var(--surface, #ffffff);
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 12px;
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
-}
-
-.kpi-icon-wrap {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-}
-
-.card-total .kpi-icon-wrap { background: #e0f2fe; color: #0284c7; }
-.card-rtp .kpi-icon-wrap { background: #e0e7ff; color: #4338ca; }
-.card-infokom .kpi-icon-wrap { background: #ccfbf1; color: #0f766e; }
-.card-pi .kpi-icon-wrap { background: #f3e8ff; color: #7e22ce; }
-
-.kpi-num {
-  font-size: 1.55rem;
-  font-weight: 800;
-  line-height: 1.1;
-  color: var(--text, #1e293b);
-}
-
-.kpi-max {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #94a3b8;
-}
-
-.kpi-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #64748b;
-  margin-top: 2px;
-}
-
-.kpi-status-tag {
-  align-self: flex-start;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-top: auto;
-}
-
-.tag-done {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.tag-pending {
-  background: #f1f5f9;
-  color: #475569;
-}
 
 /* Toolbar & Filters */
 .toolbar-card {
@@ -2217,4 +2189,114 @@ watch(
   background: #6d28d9 !important;
   border-color: #6d28d9 !important;
 }
+
+/* AI RTP Dialog */
+.ai-rtp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-rtp-context {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.ai-rtp-level {
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #fde68a;
+}
+
+.ai-rtp-uraian, .ai-rtp-celah {
+  font-size: 0.82rem;
+  margin: 4px 0 0;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.ai-rtp-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.ai-rtp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-rtp-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s;
+}
+
+.ai-rtp-card:hover {
+  border-color: #818cf8;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+}
+
+.ai-rtp-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-rtp-strategy {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #4338ca;
+  background: #e0e7ff;
+  padding: 3px 10px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+}
+
+.ai-rtp-plan-box {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: #1e293b;
+}
+
+.ai-rtp-plan-box p {
+  margin: 4px 0 0;
+  background: #f8fafc;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
+}
+
+.ai-rtp-sub-boxes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.ai-rtp-sub-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+}
+
 </style>

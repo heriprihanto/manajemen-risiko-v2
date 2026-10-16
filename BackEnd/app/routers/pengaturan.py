@@ -132,6 +132,21 @@ def update(
         val = (payload.get("template_wa") or "").strip()
         obj.template_wa = val or None
 
+    if "ai_provider" in payload:
+        val = (payload.get("ai_provider") or "").strip()
+        obj.ai_provider = val or None
+    if "ai_model" in payload:
+        val = (payload.get("ai_model") or "").strip()
+        obj.ai_model = val or None
+    if "ai_api_key" in payload:
+        val = payload.get("ai_api_key")
+        if val is not None:
+            val = str(val).strip()
+            if val == "":
+                obj.ai_api_key = None
+            elif not val.startswith("••••"):
+                obj.ai_api_key = val
+
     obj.updated_at = now_wib()
     obj.updated_by = user.get("username")
     session.add(obj)

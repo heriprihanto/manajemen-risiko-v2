@@ -429,8 +429,10 @@ onMounted(load)
 .grid-table th, .grid-table td {
   border: 1px solid #e2e8f0; padding: 6px 8px; vertical-align: middle;
 }
-.grid-table thead th { background: #f8fafc; position: sticky; top: 0; font-weight: 600; }
-.kat-row td { background: #eff6ff; }
+.grid-table thead th { background: #f8fafc; position: sticky; top: 0; font-weight: 600; color: #1e293b; border: 1px solid #e2e8f0; }
+.grid-table tbody tr:nth-child(even):not(.kat-row) { background: #f8fafc; }
+.grid-table tbody tr:hover:not(.kat-row) { background: #f1f5f9; }
+.kat-row td { background: #eff6ff; font-weight: 600; }
 .resp-col { white-space: nowrap; }
 .resp-col .del { color: #cbd5e1; cursor: pointer; margin-left: 4px; font-size: 0.7rem; }
 .resp-col .del:hover { color: #ef4444; }

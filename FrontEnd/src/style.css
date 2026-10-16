@@ -73,6 +73,7 @@ a { color: inherit; text-decoration: none; }
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden;
   border-right: 1px solid rgba(148, 163, 184, .08);
   background: linear-gradient(165deg, #312e81 0%, #1e1b4b 42%, #131235 72%, #0f1230 100%);
   background-image:
@@ -80,35 +81,90 @@ a { color: inherit; text-decoration: none; }
     radial-gradient(420px 340px at 110% 82%, rgba(236, 72, 153, .28), transparent 60%),
     radial-gradient(360px 300px at 60% 40%, rgba(139, 92, 246, .22), transparent 65%),
     linear-gradient(165deg, #2a2a72 0%, #1c1a48 45%, #131235 74%, #0e1030 100%);
+  transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sidebar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, .25); }
 .sidebar .brand {
   position: relative;
-  padding: 22px 20px 16px;
+  padding: 16px 14px;
   font-weight: 700;
   color: #fff;
-  font-size: 1.04rem;
-  line-height: 1.3;
-  letter-spacing: -.01em;
   border-bottom: 1px solid rgba(148, 163, 184, .12);
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 64px;
 }
 .sidebar .brand::before {
   content: "";
   position: absolute;
-  left: 20px; right: 20px; top: 0;
+  left: 14px; right: 14px; top: 0;
   height: 3px;
   border-radius: 0 0 4px 4px;
   background: var(--grad-brand);
 }
-.sidebar .brand small {
+.sidebar .brand-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.sidebar .brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--grad-brand);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: .88rem;
+  letter-spacing: .02em;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, .4);
+  flex-shrink: 0;
+  user-select: none;
+}
+.sidebar .brand-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+.sidebar .brand-title {
+  font-size: 1.02rem;
+  line-height: 1.25;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+}
+.sidebar .brand-subtitle {
   display: block;
   font-weight: 400;
   color: var(--sidebar-muted);
-  font-size: .72rem;
-  margin-top: 4px;
+  font-size: .71rem;
+  margin-top: 2px;
   letter-spacing: 0;
+  white-space: nowrap;
+}
+.sidebar-toggle-btn {
+  background: rgba(255, 255, 255, .08);
+  border: 1px solid rgba(255, 255, 255, .1);
+  color: var(--sidebar-muted);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .15s ease;
+  flex-shrink: 0;
+}
+.sidebar-toggle-btn:hover {
+  background: rgba(255, 255, 255, .18);
+  color: #fff;
 }
 .nav-group-label {
   display: flex;
@@ -176,6 +232,37 @@ a { color: inherit; text-decoration: none; }
 }
 .nav-item i { width: 16px; font-size: .9rem; color: inherit; opacity: .8; }
 .nav-item.active i { opacity: 1; color: #c7bcff; }
+
+.group-divider-dot { display: none; }
+.sidebar-footer {
+  margin-top: auto;
+  padding: 6px 10px;
+  border-top: 1px solid rgba(148, 163, 184, .12);
+}
+.sidebar-rail-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  font-size: .8rem;
+  font-weight: 500;
+  color: var(--sidebar-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.sidebar-rail-btn:hover {
+  background: rgba(148, 163, 184, .12);
+  color: #fff;
+}
+.sidebar-rail-btn i {
+  font-size: .85rem;
+  width: 16px;
+  text-align: center;
+}
 
 /* ===================== Main / Topbar ===================== */
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
@@ -252,6 +339,176 @@ a { color: inherit; text-decoration: none; }
    style PrimeVue disuntikkan ke <head> setelah file ini. */
 .p-datatable-mask .p-icon-spin {
   animation-duration: 0.75s;
+}
+
+/* ==============================================================
+   DATA TABLES UNIFORM STYLING (REVAMP)
+   - Tabel Header: #f8fafc, font-weight 600, border 1px solid #e2e8f0
+   - Border: 1px solid #e2e8f0 pada seluruh sel
+   - Striped / Zebra Style (alternating rows dengan hover highlight)
+   ============================================================== */
+
+/* 1. PrimeVue DataTable Component */
+.p-datatable {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: var(--radius-sm, 8px);
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.p-datatable .p-datatable-table {
+  border-collapse: collapse !important;
+  width: 100%;
+}
+
+.p-datatable .p-datatable-thead > tr > th,
+.p-datatable-thead > tr > th {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  font-size: 0.82rem !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 10px 12px !important;
+  letter-spacing: 0.01em;
+}
+
+.p-datatable .p-datatable-tbody > tr > td,
+.p-datatable-tbody > tr > td {
+  border: 1px solid #e2e8f0 !important;
+  padding: 9px 12px !important;
+  font-size: 0.84rem;
+  color: #334155;
+  vertical-align: middle;
+}
+
+/* Striped / Zebra rows for all PrimeVue DataTables */
+.p-datatable .p-datatable-tbody > tr:nth-child(even),
+.p-datatable.p-datatable-striped .p-datatable-tbody > tr:nth-child(even),
+.p-datatable-striped .p-datatable-tbody > tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+
+.p-datatable .p-datatable-tbody > tr:nth-child(odd),
+.p-datatable.p-datatable-striped .p-datatable-tbody > tr:nth-child(odd),
+.p-datatable-striped .p-datatable-tbody > tr:nth-child(odd) {
+  background-color: #ffffff !important;
+}
+
+/* Row Hover */
+.p-datatable .p-datatable-tbody > tr:hover,
+.p-datatable.p-datatable-striped .p-datatable-tbody > tr:hover,
+.p-datatable-striped .p-datatable-tbody > tr:hover {
+  background-color: #f1f5f9 !important;
+  transition: background-color 0.15s ease;
+}
+
+/* Paginator footer */
+.p-datatable .p-paginator,
+.p-datatable .p-datatable-paginator-bottom {
+  background: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+}
+
+/* 2. Grid Tables (.grid-table) */
+.grid-table {
+  width: 100%;
+  border-collapse: collapse !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff;
+}
+
+.grid-table th,
+.grid-table td {
+  border: 1px solid #e2e8f0 !important;
+  padding: 8px 10px;
+}
+
+.grid-table thead th {
+  background: #f8fafc !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.grid-table tbody tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+
+.grid-table tbody tr:nth-child(odd) {
+  background-color: #ffffff !important;
+}
+
+.grid-table tbody tr:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* 3. Table Wrap Tables (.table-wrap table) */
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff;
+}
+
+.table-wrap table th,
+.table-wrap table td {
+  border: 1px solid #e2e8f0 !important;
+  padding: 8px 12px;
+}
+
+.table-wrap table thead th {
+  background: #f8fafc !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.table-wrap table tbody tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+
+.table-wrap table tbody tr:nth-child(odd) {
+  background-color: #ffffff !important;
+}
+
+.table-wrap table tbody tr:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* 4. Rekapitulasi Tables (.rekap-table) */
+.rekap-table {
+  width: 100%;
+  border-collapse: collapse !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff;
+}
+
+.rekap-table th,
+.rekap-table td {
+  border: 1px solid #e2e8f0 !important;
+  padding: 8px 10px;
+}
+
+.rekap-table thead th {
+  background: #f8fafc !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.rekap-table tbody tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+
+.rekap-table tbody tr:nth-child(odd) {
+  background-color: #ffffff !important;
+}
+
+.rekap-table tbody tr:hover {
+  background-color: #f1f5f9 !important;
 }
 
 /* ===================== Select / MultiSelect ===================== */
@@ -348,7 +605,19 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.1;
   color: var(--accent-color);
 }
+.stat .v small {
+  font-size: 0.95rem;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-left: 2px;
+}
 .stat .l { color: var(--text-muted); font-size: .82rem; margin-top: 4px; font-weight: 500; }
+.stat .sub { font-size: .74rem; color: var(--text-muted); margin-top: 5px; }
+.stat.stat-active {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px var(--accent-color), 0 12px 28px -10px var(--accent-color);
+  transform: translateY(-2px);
+}
 
 /* ===================== Laporan / Cetak ===================== */
 .report-sheet {
@@ -367,9 +636,12 @@ a { color: inherit; text-decoration: none; }
 .report-subtitle { text-align: center; font-size: .9rem; margin-bottom: 8px; }
 .report-meta { font-size: .85rem; line-height: 1.6; }
 .report-meta b { display: inline-block; min-width: 150px; }
-table.rpt { border-collapse: collapse; width: 100%; font-size: .78rem; }
-table.rpt th, table.rpt td { border: 1px solid #475569; padding: 4px 6px; vertical-align: top; }
-table.rpt thead th { background: #e2e8f0; text-align: center; font-weight: 600; }
+table.rpt { border-collapse: collapse; width: 100%; font-size: .78rem; border: 1px solid #e2e8f0; background: #ffffff; }
+table.rpt th, table.rpt td { border: 1px solid #e2e8f0; padding: 6px 8px; vertical-align: top; }
+table.rpt thead th { background: #f8fafc; text-align: center; font-weight: 600; color: #1e293b; border: 1px solid #e2e8f0; }
+table.rpt tbody tr:nth-child(even) { background-color: #f8fafc; }
+table.rpt tbody tr:nth-child(odd) { background-color: #ffffff; }
+table.rpt tbody tr:hover { background-color: #f1f5f9; }
 table.rpt td.c { text-align: center; }
 table.rpt ol.kelemahan-ol { margin: 0; padding-left: 1.1em; }
 table.rpt ol.kelemahan-ol li { margin: 0 0 2px; }
@@ -390,9 +662,110 @@ table.rpt .hijau, table.rpt .kuning {
    lewat media query. */
 .topbar .opd-select { width: 320px; }
 .topbar .tahun-select { width: 110px; }
-/* Tombol drawer & latar penutupnya hanya dipakai di layar sempit. */
-.topbar .nav-toggle { display: none; }
+/* Tombol drawer & latar penutupnya */
+.topbar .nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.topbar .nav-toggle:hover {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
 .sidebar-backdrop { display: none; }
+
+/* ===================== Sidebar Minimized (Desktop Rail) ===================== */
+@media (min-width: 901px) {
+  .app-shell.sidebar-minimized .sidebar {
+    width: 68px;
+  }
+  .app-shell.sidebar-minimized .sidebar .brand {
+    padding: 14px 6px;
+    justify-content: center;
+  }
+  .app-shell.sidebar-minimized .sidebar .brand::before {
+    left: 8px; right: 8px;
+  }
+  .app-shell.sidebar-minimized .sidebar .brand-details {
+    display: none;
+  }
+  .app-shell.sidebar-minimized .sidebar .sidebar-toggle-btn {
+    display: none;
+  }
+  .app-shell.sidebar-minimized .sidebar .brand-logo {
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .app-shell.sidebar-minimized .sidebar .brand-logo:hover {
+    transform: scale(1.08);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, .6);
+  }
+  .app-shell.sidebar-minimized .nav-group-label {
+    margin: 8px 10px 4px;
+    padding: 4px 0;
+    justify-content: center;
+    cursor: default;
+    border-radius: 4px;
+  }
+  .app-shell.sidebar-minimized .nav-group-label:hover {
+    background: transparent;
+  }
+  .app-shell.sidebar-minimized .nav-group-label .group-title,
+  .app-shell.sidebar-minimized .nav-group-label .chev {
+    display: none;
+  }
+  .app-shell.sidebar-minimized .nav-group-label .group-divider-dot {
+    display: block;
+    width: 22px;
+    height: 2px;
+    border-radius: 2px;
+    background: rgba(148, 163, 184, .25);
+    transition: background .15s ease;
+  }
+  .app-shell.sidebar-minimized .nav-group-label:hover .group-divider-dot {
+    background: rgba(148, 163, 184, .5);
+  }
+  .app-shell.sidebar-minimized .nav-group-items {
+    grid-template-rows: 1fr !important;
+  }
+  .app-shell.sidebar-minimized .nav-item {
+    margin: 3px 8px;
+    padding: 10px 0;
+    justify-content: center;
+    gap: 0;
+  }
+  .app-shell.sidebar-minimized .nav-item .nav-text {
+    display: none;
+  }
+  .app-shell.sidebar-minimized .nav-item i {
+    font-size: 1.05rem;
+    width: auto;
+    margin: 0;
+  }
+  .app-shell.sidebar-minimized .nav-item.active::before {
+    left: -8px;
+    top: 4px;
+    bottom: 4px;
+    width: 4px;
+    box-shadow: 0 0 12px rgba(139, 92, 246, .85);
+  }
+  .app-shell.sidebar-minimized .sidebar-footer {
+    padding: 6px 6px;
+  }
+  .app-shell.sidebar-minimized .sidebar-rail-btn {
+    justify-content: center;
+    padding: 8px 0;
+  }
+  .app-shell.sidebar-minimized .sidebar-rail-btn .nav-text {
+    display: none;
+  }
+  .app-shell.sidebar-minimized .sidebar-rail-btn i {
+    width: auto;
+  }
+}
 
 @media (max-width: 1200px) {
   .topbar .opd-select { width: 220px; }

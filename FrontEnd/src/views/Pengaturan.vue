@@ -7,6 +7,7 @@ import Textarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
+import Select from 'primevue/select'
 import { useToast } from 'primevue/usetoast'
 import api from '@/api'
 import AppLoader from '@/components/AppLoader.vue'
@@ -30,7 +31,75 @@ const form = ref({
   template_email_subject: '',
   template_email: '',
   template_wa: '',
+  ai_provider: 'gemini',
+  ai_model: 'gemini-3.8-flash',
+  ai_api_key: '',
 })
+
+const showApiKey = ref(false)
+const testingAi = ref(false)
+const aiTestResult = ref(null)
+
+const providerOptions = [
+  { label: 'Hermes Agent (Lokal Komputer — Tanpa API Key)', value: 'hermes', defaultModel: 'gpt-6-astra', docUrl: '', placeholder: 'Tidak memerlukan API Key (Otomatis terhubung ke Hermes lokal)' },
+  { label: 'Google Gemini (Rekomendasi Cloud 2026)', value: 'gemini', defaultModel: 'gemini-3.8-flash', docUrl: 'https://aistudio.google.com/app/apikey', placeholder: 'AIzaSy...' },
+  { label: 'OpenAI (o4-mini / o3 / GPT-5)', value: 'openai', defaultModel: 'o4-mini', docUrl: 'https://platform.openai.com/api-keys', placeholder: 'sk-proj-...' },
+  { label: 'Anthropic Claude (Claude Sonnet 5.5 / Haiku 5.5)', value: 'anthropic', defaultModel: 'claude-sonnet-5-5', docUrl: 'https://console.anthropic.com/settings/keys', placeholder: 'sk-ant-...' },
+]
+
+const modelPresets = {
+  hermes: [
+    { label: 'gpt-6-astra (Model Bawaan Hermes Agent)', value: 'gpt-6-astra' },
+  ],
+  gemini: [
+    { label: 'gemini-3.8-flash (Model Utama 2026 - Sangat Cepat & Cerdas)', value: 'gemini-3.8-flash' },
+    { label: 'gemini-3.5-flash-lite (Ultra Cepat & Ringan)', value: 'gemini-3.5-flash-lite' },
+    { label: 'gemini-3.1-pro (Penalaran Mendalam & Analisis)', value: 'gemini-3.1-pro' },
+    { label: 'gemini-2.5-flash (Generasi 2.5)', value: 'gemini-2.5-flash' },
+  ],
+  openai: [
+    { label: 'o4-mini (Model Reasoning Cepat 2026)', value: 'o4-mini' },
+    { label: 'o3-mini (Model Penalaran Canggih)', value: 'o3-mini' },
+    { label: 'gpt-5 (Flagship AI 2026)', value: 'gpt-5' },
+    { label: 'o3 (Deep Reasoning)', value: 'o3' },
+    { label: 'gpt-4o (Generasi Sebelumnya)', value: 'gpt-4o' },
+  ],
+  anthropic: [
+    { label: 'claude-sonnet-5-5 (Model Utama 2026 - Sangat Teliti)', value: 'claude-sonnet-5-5' },
+    { label: 'claude-haiku-5-5 (Ultra Cepat)', value: 'claude-haiku-5-5' },
+    { label: 'claude-opus-5-5 (Penalaran Paling Kuat)', value: 'claude-opus-5-5' },
+    { label: 'claude-3-7-sonnet-20250219 (Claude 3.7 Hybrid Reasoning)', value: 'claude-3-7-sonnet-20250219' },
+  ],
+}
+
+function onProviderChange(val) {
+  const p = providerOptions.find((x) => x.value === val)
+  if (p && !form.value.ai_model) {
+    form.value.ai_model = p.defaultModel
+  } else if (p && modelPresets[val] && !modelPresets[val].some((m) => m.value === form.value.ai_model)) {
+    form.value.ai_model = p.defaultModel
+  }
+}
+
+async function testAiConnection() {
+  testingAi.value = true
+  aiTestResult.value = null
+  try {
+    const { data } = await api.post('/ai/test-connection', {
+      provider: form.value.ai_provider,
+      model: form.value.ai_model,
+      api_key: form.value.ai_api_key,
+    })
+    aiTestResult.value = { success: true, message: data.message + (data.reply ? ` Respon: "${data.reply}"` : '') }
+    toast.add({ severity: 'success', summary: 'Koneksi Berhasil', detail: 'Provider AI siap digunakan.', life: 3000 })
+  } catch (e) {
+    const err = e.response?.data?.detail || e.message || 'Gagal koneksi'
+    aiTestResult.value = { success: false, message: err }
+    toast.add({ severity: 'error', summary: 'Koneksi Gagal', detail: err, life: 4000 })
+  } finally {
+    testingAi.value = false
+  }
+}
 
 const defaults = ref({
   template_email_subject: '',
@@ -78,6 +147,9 @@ async function load() {
     template_email_subject: data.template_email_subject || '',
     template_email: data.template_email || '',
     template_wa: data.template_wa || '',
+    ai_provider: data.ai_provider || 'gemini',
+    ai_model: data.ai_model || 'gemini-3.8-flash',
+    ai_api_key: data.ai_api_key ? '••••••••••••••••' : '',
   }
   status.value = data.survei_status
   updated.value = { at: data.updated_at, by: data.updated_by }
@@ -148,6 +220,9 @@ async function save() {
       template_email_subject: form.value.template_email_subject,
       template_email: form.value.template_email,
       template_wa: form.value.template_wa,
+      ai_provider: form.value.ai_provider,
+      ai_model: form.value.ai_model,
+      ai_api_key: form.value.ai_api_key,
     })
     status.value = data.survei_status
     updated.value = { at: data.updated_at, by: data.updated_by }
@@ -454,6 +529,135 @@ onMounted(load)
       </div>
     </div>
 
+    <!-- 5. Integrasi AI Assistant -->
+    <div class="page-card" style="margin-bottom: 16px">
+      <div class="sec-header">
+        <div>
+          <h3 class="sec-title">
+            <i class="pi pi-sparkles text-indigo-600 mr-2" />
+            Integrasi AI Assistant (Kecerdasan Buatan)
+          </h3>
+          <p class="muted sec-desc">
+            Konfigurasi penyedia Large Language Model (LLM) untuk asisten perumusan risiko otomatis (Kamus Risiko),
+            rekomendasi Rencana Tindak Pengendalian (Form 7/8/9), dan Copilot interaktif.
+          </p>
+        </div>
+        <div v-if="form.ai_provider === 'hermes' || form.ai_api_key" class="ai-active-badge">
+          <i class="pi pi-check-circle" /> AI Aktif {{ form.ai_provider === 'hermes' ? '(Hermes Lokal)' : '' }}
+        </div>
+      </div>
+
+      <div class="grid-2" style="gap: 16px; margin-top: 10px">
+        <!-- Pilihan Provider -->
+        <div>
+          <label class="lbl">Provider AI</label>
+          <Select
+            v-model="form.ai_provider"
+            :options="providerOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Pilih Penyedia AI"
+            fluid
+            @change="onProviderChange($event.value)"
+          />
+          <small v-if="form.ai_provider === 'hermes'" style="display: block; margin-top: 4px; color: #059669; font-weight: 600;">
+            <i class="pi pi-check-circle mr-1" />
+            Terhubung langsung dengan binary <code>~/.local/bin/hermes</code> di komputer lokal (gratis / tanpa API key).
+          </small>
+          <small v-else class="muted" style="display: block; margin-top: 4px">
+            Dapatkan API key resmi di:
+            <a
+              :href="providerOptions.find((p) => p.value === form.ai_provider)?.docUrl || '#'"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: var(--p-primary-color); text-decoration: underline"
+            >
+              {{ form.ai_provider === 'gemini' ? 'Google AI Studio' : form.ai_provider === 'openai' ? 'OpenAI Platform' : 'Anthropic Console' }}
+              <i class="pi pi-external-link" style="font-size: 0.7rem" />
+            </a>
+          </small>
+        </div>
+
+        <!-- Pilihan Model -->
+        <div>
+          <label class="lbl">Model AI</label>
+          <Select
+            v-if="modelPresets[form.ai_provider]"
+            v-model="form.ai_model"
+            :options="modelPresets[form.ai_provider]"
+            optionLabel="label"
+            optionValue="value"
+            editable
+            placeholder="Pilih atau ketik model"
+            fluid
+          />
+          <InputText
+            v-else
+            v-model="form.ai_model"
+            placeholder="cth: gemini-2.0-flash atau gpt-4o-mini"
+            fluid
+          />
+          <small class="muted" style="display: block; margin-top: 4px">
+            Dapat memilih preset rekomendasi atau mengetik nama model spesifik.
+          </small>
+        </div>
+      </div>
+
+      <!-- Input API Key -->
+      <div style="margin-top: 16px">
+        <label class="lbl">API Key</label>
+        <div style="display: flex; gap: 8px">
+          <InputText
+            v-model="form.ai_api_key"
+            :type="showApiKey ? 'text' : 'password'"
+            :placeholder="providerOptions.find((p) => p.value === form.ai_provider)?.placeholder || 'Masukkan API Key...'"
+            :disabled="form.ai_provider === 'hermes'"
+            style="flex: 1"
+          />
+          <Button
+            type="button"
+            :icon="showApiKey ? 'pi pi-eye-slash' : 'pi pi-eye'"
+            severity="secondary"
+            outlined
+            v-tooltip="showApiKey ? 'Sembunyikan' : 'Tampilkan'"
+            :disabled="form.ai_provider === 'hermes'"
+            @click="showApiKey = !showApiKey"
+          />
+          <Button
+            type="button"
+            label="Uji Koneksi"
+            icon="pi pi-bolt"
+            severity="help"
+            :loading="testingAi"
+            :disabled="form.ai_provider !== 'hermes' && !form.ai_api_key"
+            @click="testAiConnection"
+          />
+        </div>
+        <small v-if="form.ai_provider === 'hermes'" class="muted" style="display: block; margin-top: 4px">
+          <i class="pi pi-info-circle" style="font-size: 0.72rem" />
+          Hermes Agent menggunakan sesi otentikasi internal yang sudah aktif di sistem Anda.
+        </small>
+        <small v-else class="muted" style="display: block; margin-top: 4px">
+          <i class="pi pi-lock" style="font-size: 0.72rem" />
+          Kunci API disimpan terenkripsi di server dan hanya dipanggil backend saat fitur AI diakses.
+        </small>
+      </div>
+
+      <!-- Test Connection Feedback Message -->
+      <Message
+        v-if="aiTestResult"
+        :severity="aiTestResult.success ? 'success' : 'error'"
+        :closable="true"
+        style="margin-top: 12px"
+        @close="aiTestResult = null"
+      >
+        <div style="display: flex; align-items: center; gap: 8px">
+          <i :class="['pi', aiTestResult.success ? 'pi-check-circle' : 'pi-exclamation-triangle']" />
+          <span>{{ aiTestResult.message }}</span>
+        </div>
+      </Message>
+    </div>
+
     <!-- Tombol Simpan -->
     <div class="save-bar">
       <span v-if="updated.at" class="muted">
@@ -479,6 +683,18 @@ onMounted(load)
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
+}
+.ai-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #bbf7d0;
 }
 .sec-title {
   margin: 0 0 4px;

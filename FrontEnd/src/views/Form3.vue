@@ -493,7 +493,7 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
           <label class="muted lbl">Tahap Kegiatan</label>
           <Select
             v-model="editing.tahap_kegiatan"
-            :options="['Pelaksanaan', 'Pertanggungjawaban']"
+            :options="['Pelaksanaan', 'Pertanggungjawaban','Penatausahaan','Pelaporan','Pemantauan dan evaluasi']"
             placeholder="Pilih tahap"
             style="width: 100%"
           />

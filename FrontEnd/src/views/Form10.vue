@@ -126,6 +126,8 @@ onMounted(load)
 <style scoped>
 .grid-table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
 .grid-table th, .grid-table td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
-.grid-table thead th { background: #f8fafc; font-weight: 600; }
+.grid-table thead th { background: #f8fafc; font-weight: 600; color: #1e293b; border: 1px solid #e2e8f0; }
+.grid-table tbody tr:nth-child(even) { background: #f8fafc; }
+.grid-table tbody tr:hover { background: #f1f5f9; }
 .lbl { font-size: 0.8rem; display: block; margin-bottom: 2px; }
 </style>

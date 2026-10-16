@@ -21,11 +21,11 @@ const routes = [
   { path: '/rekap-rtp', name: 'rekap-rtp', component: () => import('@/views/LaporanRekapitulasi.vue'), meta: { title: 'Rekapitulasi Realisasi RTP', tab: 'rtp' } },
   { path: '/rekap-event', name: 'rekap-event', component: () => import('@/views/LaporanRekapitulasi.vue'), meta: { title: 'Rekapitulasi Keterjadian Risiko', tab: 'risk_event' } },
 
-  { path: '/form1a', name: 'form1a', component: () => import('@/views/Form1a.vue'), meta: { title: 'Form 1.a — Kuesioner CEE (Persepsi)' } },
-  { path: '/form1b', name: 'form1b', component: () => import('@/views/Form1b.vue'), meta: { title: 'Form 1.b — Reviu Dokumen CEE' } },
-  { path: '/form1c', name: 'form1c', component: () => import('@/views/Form1c.vue'), meta: { title: 'Form 1.c — Simpulan CEE' } },
+  { path: '/form1a', name: 'form1a', component: () => import('@/views/Form1a.vue'), meta: { title: 'Kuesioner CEE (Persepsi)' } },
+  { path: '/form1b', name: 'form1b', component: () => import('@/views/Form1b.vue'), meta: { title: 'Reviu Dokumen CEE' } },
+  { path: '/form1c', name: 'form1c', component: () => import('@/views/Form1c.vue'), meta: { title: 'Simpulan CEE' } },
   { path: '/survei-hasil', name: 'survei-hasil', component: () => import('@/views/SurveiHasil.vue'), meta: { title: 'Rincian Hasil Survei CEE' } },
-  { path: '/form6', name: 'form6', component: () => import('@/views/Form6.vue'), meta: { title: 'Form 6 — RTP atas CEE' } },
+  { path: '/form6', name: 'form6', component: () => import('@/views/Form6.vue'), meta: { title: 'RTP atas CEE' } },
 
   { path: '/konteks', name: 'konteks', component: () => import('@/views/PenetapanKonteks.vue'), meta: { title: 'Penetapan Konteks Risiko' } },
   { path: '/form2a', redirect: () => ({ name: 'konteks', query: { tab: '2a' } }) },
@@ -43,6 +43,9 @@ const routes = [
   { path: '/form7', name: 'form7', component: () => import('@/views/Form7.vue'), meta: { title: 'Respon Risiko (RTP)' } },
   { path: '/form8', redirect: '/form7' },
   { path: '/form9', redirect: '/form7' },
+  { path: '/realisasi-rtp', name: 'realisasi-rtp', component: () => import('@/views/RealisasiRtp.vue'), meta: { title: 'Realisasi Rencana Tindak Pengendalian (RTP)' } },
+  { path: '/treated-risk', name: 'treated-risk', component: () => import('@/views/TreatedRisk.vue'), meta: { title: 'Treated Risk (Pasca-RTP)' } },
+
   { path: '/form10', name: 'form10', component: () => import('@/views/Form10.vue'), meta: { title: 'Form 10 — Monitoring Risk Event & RTP' } },
   { path: '/approval-kejadian', name: 'approval-kejadian', component: () => import('@/views/ApprovalKejadian.vue'), meta: { title: 'Approval Kejadian Risiko' } },
 

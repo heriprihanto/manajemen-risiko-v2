@@ -6,6 +6,7 @@ import Button from 'primevue/button'
 import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
 import AppLoader from '@/components/AppLoader.vue'
+import AiCopilot from '@/components/AiCopilot.vue'
 import { useContextStore } from '@/stores/context'
 import { useAuthStore } from '@/stores/auth'
 
@@ -20,6 +21,33 @@ const base = import.meta.env.BASE_URL // '/manajemen-risiko/' di produksi
 const navigating = ref(false)
 // Di layar sempit sidebar jadi drawer; ditutup otomatis tiap pindah halaman.
 const sidebarOpen = ref(false)
+const sidebarMinimized = ref(typeof localStorage !== 'undefined' && localStorage.getItem('sidebar_minimized') === '1')
+
+function toggleSidebar() {
+  if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+    sidebarOpen.value = !sidebarOpen.value
+  } else {
+    sidebarMinimized.value = !sidebarMinimized.value
+    localStorage.setItem('sidebar_minimized', sidebarMinimized.value ? '1' : '0')
+  }
+}
+
+function handleNavToggle() {
+  toggleSidebar()
+}
+
+const topbarToggleIcon = computed(() => {
+  if (sidebarOpen.value) return 'pi pi-times'
+  return 'pi pi-bars'
+})
+
+const topbarToggleTitle = computed(() => {
+  if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+    return sidebarOpen.value ? 'Tutup menu' : 'Buka menu'
+  }
+  return sidebarMinimized.value ? 'Perluas menu' : 'Kecilkan menu'
+})
+
 router.beforeEach(() => {
   navigating.value = true
 })
@@ -80,10 +108,13 @@ const navGroups = [
       ['matriks', 'Matriks Risiko', 'pi-th-large'],
       ['form5', 'Risiko Prioritas', 'pi-star'],
       ['form7', 'Respon Risiko (RTP)', 'pi-shield'],
+      ['realisasi-rtp', 'Realisasi RTP', 'pi-check-circle'],
+      ['treated-risk', 'Treated Risk', 'pi-sliders-v'],
     ],
   },
+
   {
-    label: 'Komunikasi & Pemantauan',
+    label: 'Pemantauan',
     items: [
       ['form10', 'Monitoring Event', 'pi-history'],
       ['approval-kejadian', 'Approval Kejadian', 'pi-check-circle'],
@@ -205,23 +236,45 @@ watch(
     <Toast position="top-right" />
   </template>
 
-  <div v-else class="app-shell" :class="{ 'sidebar-open': sidebarOpen }">
+  <div v-else class="app-shell" :class="{ 'sidebar-open': sidebarOpen, 'sidebar-minimized': sidebarMinimized }">
     <!-- Latar gelap penutup saat drawer terbuka (hanya tampil di layar sempit) -->
     <div class="sidebar-backdrop no-print" @click="sidebarOpen = false" />
 
     <aside class="sidebar">
       <div class="brand">
-        Manajemen Risiko
-        <small>Pemerintah Kota Tegal — SPIP</small>
+        <div class="brand-main">
+          <div
+            class="brand-logo"
+            v-tooltip.right="sidebarMinimized ? 'Pemerintah Kota Tegal — Manajemen Risiko' : undefined"
+            @click="sidebarMinimized ? toggleSidebar() : null"
+          >
+            <span>MR</span>
+          </div>
+          <div class="brand-details">
+            <span class="brand-title">Manajemen Risiko</span>
+            <small class="brand-subtitle">Pemerintah Kota Tegal — SPIP</small>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="sidebar-toggle-btn no-print"
+          :title="sidebarMinimized ? 'Perluas Menu' : 'Kecilkan Menu'"
+          @click="toggleSidebar"
+        >
+          <i class="pi" :class="sidebarMinimized ? 'pi-angle-right' : 'pi-angle-left'" />
+        </button>
       </div>
+
       <template v-for="g in visibleGroups" :key="g.label">
         <div
           class="nav-group-label"
           :class="{ open: openGroup === g.label }"
+          v-tooltip.right="sidebarMinimized ? g.label : undefined"
           @click="toggleGroup(g.label)"
         >
-          <span>{{ g.label }}</span>
+          <span class="group-title">{{ g.label }}</span>
           <i class="pi pi-chevron-down chev" />
+          <span class="group-divider-dot" />
         </div>
         <div class="nav-group-items" :class="{ open: openGroup === g.label }">
           <div class="nav-group-inner">
@@ -232,30 +285,55 @@ watch(
               custom
               v-slot="{ navigate, isActive }"
             >
-              <div class="nav-item" :class="{ active: isActive }" @click="navigate">
+              <div
+                class="nav-item"
+                :class="{ active: isActive }"
+                v-tooltip.right="sidebarMinimized ? it[1] : undefined"
+                @click="navigate"
+              >
                 <i class="pi" :class="it[2]" />
-                <span>{{ it[1] }}</span>
+                <span class="nav-text">{{ it[1] }}</span>
               </div>
             </router-link>
           </div>
         </div>
       </template>
-      <a class="nav-item" :href="`${base}survei`" target="_blank" style="margin-top: auto; border-top: 1px solid #1e293b">
+
+      <a
+        class="nav-item nav-survei"
+        :href="`${base}survei`"
+        target="_blank"
+        v-tooltip.right="sidebarMinimized ? 'Buka Survei Publik' : undefined"
+        style="margin-top: auto; border-top: 1px solid rgba(148, 163, 184, .12);"
+      >
         <i class="pi pi-external-link" />
-        <span>Buka Survei Publik</span>
+        <span class="nav-text">Buka Survei Publik</span>
       </a>
+
+      <div class="sidebar-footer no-print">
+        <button
+          type="button"
+          class="sidebar-rail-btn"
+          v-tooltip.right="sidebarMinimized ? 'Perluas Menu' : undefined"
+          @click="toggleSidebar"
+        >
+          <i class="pi" :class="sidebarMinimized ? 'pi-chevron-right' : 'pi-chevron-left'" />
+          <span class="nav-text">Kecilkan Menu</span>
+        </button>
+      </div>
     </aside>
 
     <div class="main">
       <header class="topbar">
         <Button
           class="nav-toggle no-print"
-          :icon="sidebarOpen ? 'pi pi-times' : 'pi pi-bars'"
+          :icon="topbarToggleIcon"
           severity="secondary"
           text
           rounded
-          aria-label="Menu"
-          @click="sidebarOpen = !sidebarOpen"
+          :aria-label="topbarToggleTitle"
+          v-tooltip.bottom="topbarToggleTitle"
+          @click="handleNavToggle"
         />
         <div class="page-title">{{ pageTitle }}</div>
         <div class="ctx">
@@ -314,6 +392,7 @@ watch(
         <AppLoader v-else label="Memuat data OPD…" />
       </main>
     </div>
+    <AiCopilot v-if="auth.user" />
     <Toast position="top-right" />
     <ConfirmDialog />
   </div>

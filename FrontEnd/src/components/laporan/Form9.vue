@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { jenisLabel } from './constants'
+import { formatDate } from '@/utils/date'
+
 
 const props = defineProps({
   data: { type: Array, default: () => [] },
@@ -36,8 +38,9 @@ const groups = computed(() => {
           <tr><td class="c"></td><td colspan="5"><b>{{ g.label }}</b></td></tr>
           <tr v-for="(r, i) in g.items" :key="r.id">
             <td class="c">{{ r.no_urut || i + 1 }}</td><td>{{ r.kegiatan_pengendalian }}</td><td>{{ r.metode_pemantauan }}</td>
-            <td>{{ r.penanggung_jawab }}</td><td>{{ r.rencana_waktu }}</td><td>{{ r.realisasi_waktu }}</td>
+            <td>{{ r.penanggung_jawab }}</td><td>{{ formatDate(r.rencana_waktu) }}</td><td>{{ formatDate(r.realisasi_waktu) }}</td>
           </tr>
+
         </template>
         <tr v-if="!groups.length"><td colspan="6" class="c">Belum ada data</td></tr>
       </tbody>

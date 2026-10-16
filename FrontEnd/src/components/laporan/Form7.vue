@@ -1,5 +1,6 @@
 <script setup>
 import { statusLabel, responLabel } from '@/utils/rtp'
+import { formatDate } from '@/utils/date'
 defineProps({ data: { type: Array, default: () => [] }, opdName: String, tahun: [Number, String] })
 </script>
 
@@ -15,8 +16,9 @@ defineProps({ data: { type: Array, default: () => [] }, opdName: String, tahun: 
           <td class="c">{{ i + 1 }}</td><td>{{ it.uraian_risiko }}</td><td>{{ it.kode_risiko }}</td>
           <td>{{ it.pemilik_risiko }}</td>
           <td><div v-if="it.rtp?.status_pengendalian">{{ statusLabel(it.rtp.status_pengendalian) }}</div>{{ it.rtp?.pengendalian_ada }}<div v-if="it.rtp?.bukti_judul">Bukti: {{ it.rtp.bukti_judul }}<br>{{ it.rtp.bukti_link || it.rtp.bukti_nama }}</div></td><td>{{ it.rtp?.celah_pengendalian }}</td>
-          <td><div v-if="it.rtp?.respon_risiko">{{ responLabel(it.rtp.respon_risiko) }}</div>{{ it.rtp?.rencana_tindak }}</td><td>{{ it.rtp?.target_waktu }}</td>
+          <td><div v-if="it.rtp?.respon_risiko">{{ responLabel(it.rtp.respon_risiko) }}</div>{{ it.rtp?.rencana_tindak }}</td><td>{{ formatDate(it.rtp?.target_waktu) }}</td>
         </tr>
+
         <tr v-if="!data || !data.length"><td colspan="8" class="c">Belum ada risiko prioritas</td></tr>
       </tbody>
     </table>

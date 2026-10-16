@@ -97,6 +97,6 @@ fieldset { border:0; padding:0; min-width:0; } .layout { display:grid; grid-temp
 .preview { width:100%; border-collapse:collapse; text-align:center; } .preview td, .preview th { padding:12px; border:1px solid #cbd5e1; } caption { margin-bottom:12px; }
 .accepted { background:#dcfce7; color:#14532d; } .outside { background:#ffedd5; color:#7c2d12; }
 .primary { background:#2563eb; color:white; border:0; padding:12px 18px; border-radius:6px; cursor:pointer; } button:disabled { opacity:.6; cursor:wait; }
-.scroll { overflow:auto; } .history { border-collapse:collapse; width:100%; } .history th,.history td { text-align:left; padding:10px; border-bottom:1px solid #e2e8f0; vertical-align:top; white-space:pre-wrap; }
+.scroll { overflow:auto; } .history { border-collapse:collapse; width:100%; border:1px solid #e2e8f0; } .history th,.history td { text-align:left; padding:10px; border:1px solid #e2e8f0; vertical-align:top; white-space:pre-wrap; } .history thead th { background:#f8fafc; color:#1e293b; font-weight:600; } .history tbody tr:nth-child(even) { background:#f8fafc; } .history tbody tr:hover { background:#f1f5f9; }
 @media(max-width:760px) { .layout { grid-template-columns:1fr; gap:12px; } }
 </style>

@@ -1,5 +1,5 @@
 """Form 1.a (kuesioner persepsi), 1.b (reviu dokumen), 1.c (simpulan), Form 6 (RTP CEE)."""
-from datetime import datetime
+from datetime import date, datetime
 import re
 import secrets
 import smtplib
@@ -741,7 +741,106 @@ def form1c_permasalahan(
 
 
 # ------------------------------- Form 6: RTP CEE ------------------------------
-rtp_cee_router = make_opd_tahun_router(
-    model=RtpCee, prefix="/rtp-cee", tag="cee", order_by="no_urut"
-)
-router.include_router(rtp_cee_router)
+def _sync_rtp_cee_dates(payload: dict[str, Any]) -> dict[str, Any]:
+    data = dict(payload)
+
+    def parse_d(v):
+        if not v:
+            return None
+        if isinstance(v, date):
+            return v
+        try:
+            return date.fromisoformat(str(v)[:10])
+        except (ValueError, TypeError):
+            return None
+
+    m = parse_d(data.get("target_mulai"))
+    s = parse_d(data.get("target_selesai"))
+
+    # Fallback dari target_waktu jika pengguna mengisi teks rentang
+    tw = data.get("target_waktu")
+    if not m and not s and tw and isinstance(tw, str):
+        if " s.d. " in tw:
+            p = tw.split(" s.d. ")
+            m = parse_d(p[0])
+            s = parse_d(p[1])
+        elif re.match(r"^\d{4}-\d{2}-\d{2}$", tw.strip()):
+            m = parse_d(tw.strip())
+            s = m
+
+    data["target_mulai"] = m
+    data["target_selesai"] = s
+    if m and s:
+        data["target_waktu"] = f"{m.isoformat()} s.d. {s.isoformat()}"
+    elif m:
+        data["target_waktu"] = m.isoformat()
+    elif s:
+        data["target_waktu"] = s.isoformat()
+    elif "target_waktu" in data and not data["target_waktu"]:
+        data["target_waktu"] = None
+
+    return data
+
+
+@router.get("/rtp-cee")
+def list_rtp_cee(
+    opd_id: int, tahun: int, session: Session = Depends(get_session)
+):
+    stmt = (
+        select(RtpCee)
+        .where(RtpCee.opd_id == opd_id, RtpCee.tahun == tahun)
+        .order_by(RtpCee.no_urut, RtpCee.id)
+    )
+    return session.exec(stmt).all()
+
+
+@router.post("/rtp-cee")
+def create_rtp_cee(
+    payload: dict[str, Any] = Body(...),
+    session: Session = Depends(get_session),
+    user: dict = UserDep,
+):
+    clean = _sync_rtp_cee_dates(payload)
+    obj = RtpCee()
+    fields = RtpCee.model_fields
+    for key, value in clean.items():
+        if key in fields and key not in ("id", "created_at"):
+            setattr(obj, key, value)
+    obj.updated_at = now_wib()
+    session.add(obj)
+    session.commit()
+    session.refresh(obj)
+    return obj
+
+
+@router.put("/rtp-cee/{item_id}")
+def update_rtp_cee(
+    item_id: int,
+    payload: dict[str, Any] = Body(...),
+    session: Session = Depends(get_session),
+    user: dict = UserDep,
+):
+    obj = guard_record(user, session.get(RtpCee, item_id))
+    clean = _sync_rtp_cee_dates(payload)
+    fields = RtpCee.model_fields
+    for key, value in clean.items():
+        if key in fields and key not in ("id", "created_at"):
+            setattr(obj, key, value)
+    obj.updated_at = now_wib()
+    session.add(obj)
+    session.commit()
+    session.refresh(obj)
+    return obj
+
+
+@router.delete("/rtp-cee/{item_id}")
+def delete_rtp_cee(
+    item_id: int,
+    session: Session = Depends(get_session),
+    user: dict = UserDep,
+):
+    obj = guard_record(user, session.get(RtpCee, item_id))
+    session.delete(obj)
+    session.commit()
+    return {"ok": True}
+

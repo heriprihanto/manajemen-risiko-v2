@@ -1,5 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { formatDate } from '@/utils/date'
+
 
 const props = defineProps({
   data: { type: Object, default: () => ({ items: [], log_rows: [], summary: {} }) },
@@ -244,7 +246,7 @@ const summary = computed(() => props.data.summary || {})
             </td>
             <td class="c font-mono font-medium">{{ lr.kode_risiko }}</td>
             <td>{{ lr.uraian_risiko }}</td>
-            <td class="c font-mono">{{ lr.tanggal_terjadi }}</td>
+            <td class="c font-mono">{{ formatDate(lr.tanggal_terjadi) }}</td>
             <td>{{ lr.sebab_kejadian }}</td>
             <td>{{ lr.dampak_kejadian }}</td>
             <td>{{ lr.realisasi_rtp }}</td>
@@ -334,18 +336,29 @@ const summary = computed(() => props.data.summary || {})
   width: 100%;
   border-collapse: collapse;
   font-size: 0.82rem;
+  border: 1px solid #e2e8f0;
 }
 .rekap-table th,
 .rekap-table td {
-  border: 1px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   padding: 8px 10px;
   vertical-align: middle;
 }
 .rekap-table thead th {
-  background: #e2e8f0;
+  background: #f8fafc;
   color: #1e293b;
   font-weight: 600;
   text-align: center;
+  border: 1px solid #e2e8f0;
+}
+.rekap-table tbody tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+.rekap-table tbody tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+.rekap-table tbody tr:hover {
+  background-color: #f1f5f9;
 }
 .opd-name-cell {
   display: flex;

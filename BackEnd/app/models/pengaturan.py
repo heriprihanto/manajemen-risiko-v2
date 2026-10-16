@@ -31,5 +31,9 @@ class Pengaturan(SQLModel, table=True):
     template_email_subject: str | None = None
     template_email: str | None = None
     template_wa: str | None = None
+    # AI Assistant config
+    ai_provider: str | None = None  # 'openai' | 'gemini' | 'anthropic'
+    ai_api_key: str | None = None
+    ai_model: str | None = None
     updated_at: datetime = Field(default_factory=now_wib)
     updated_by: str | None = None

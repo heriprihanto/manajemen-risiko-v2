@@ -52,6 +52,68 @@ const form = ref({
 const customKategori = ref('')
 const isCustomKategori = ref(false)
 
+// AI Risk Generator state
+const aiDialogVisible = ref(false)
+const aiSasaran = ref('')
+const aiGenerating = ref(false)
+const aiSuggestions = ref([])
+
+const quickSasaranTemplates = [
+  'Peningkatan kualitas pelayanan perizinan dan kemudahan berusaha',
+  'Peningkatan derajat kesehatan masyarakat dan mutu layanan Puskesmas',
+  'Pengelolaan belanja modal infrastruktur jalan, drainase, dan jembatan',
+  'Pengelolaan sistem informasi administrasi kepegawaian (SIMPEG/SIASN)',
+  'Optimalisasi penerimaan pendapatan asli daerah (PAD) dari pajak & retribusi',
+]
+
+async function generateAiRisks() {
+  if (!aiSasaran.value.trim()) return
+  aiGenerating.value = true
+  aiSuggestions.value = []
+  try {
+    const { data } = await api.post('/ai/generate-risk', {
+      sasaran: aiSasaran.value.trim(),
+    })
+    aiSuggestions.value = data.suggestions || []
+    if (!aiSuggestions.value.length) {
+      toast.add({ severity: 'warn', summary: 'AI Generator', detail: 'Tidak ada saran risiko yang terstruktur.', life: 3000 })
+    }
+  } catch (e) {
+    const err = e.response?.data?.detail || e.message || 'Gagal generate risiko'
+    toast.add({ severity: 'error', summary: 'AI Error', detail: err, life: 4000 })
+  } finally {
+    aiGenerating.value = false
+  }
+}
+
+async function useAiSuggestion(sug) {
+  form.value.nama_risiko = sug.uraian_risiko || ''
+  const descParts = []
+  if (sug.penyebab) descParts.push(`Penyebab: ${sug.penyebab}`)
+  if (sug.dampak) descParts.push(`Dampak: ${sug.dampak}`)
+  form.value.deskripsi = descParts.join('\n')
+
+  if (sug.kategori) {
+    const matched = kategoriList.value.find(
+      (k) =>
+        k.toLowerCase().includes(sug.kategori.toLowerCase()) ||
+        sug.kategori.toLowerCase().includes(k.toLowerCase())
+    )
+    if (matched) {
+      form.value.kategori_risiko = matched
+      await onFormKategoriChange(matched)
+    }
+  }
+
+  aiDialogVisible.value = false
+  toast.add({
+    severity: 'success',
+    summary: 'Rumusan Diterapkan',
+    detail: 'Uraian risiko, penyebab, dan dampak berhasil diterapkan ke form.',
+    life: 3000,
+  })
+}
+
 // Kategori styling tag
 const kategoriColors = {
   'Risiko Operasional': { bg: '#e0e7ff', text: '#3730a3', border: '#c7d2fe' },
@@ -574,6 +636,27 @@ onMounted(() => {
       class="custom-dialog"
     >
       <div class="dialog-form">
+        <!-- AI Assist Banner -->
+        <div class="ai-assist-banner">
+          <div class="ai-banner-left">
+            <div class="ai-banner-icon">
+              <i class="pi pi-sparkles" />
+            </div>
+            <div>
+              <div class="ai-banner-title">Bantuan AI Rumus Risiko</div>
+              <div class="ai-banner-desc">Punya sasaran atau kegiatan? Biarkan AI merumuskan risiko, penyebab & dampaknya.</div>
+            </div>
+          </div>
+          <Button
+            type="button"
+            label="Rumuskan dengan AI"
+            icon="pi pi-sparkles"
+            size="small"
+            severity="help"
+            @click="aiDialogVisible = true"
+          />
+        </div>
+
         <!-- Kode, No & Kelompok -->
         <div class="form-grid-3">
           <div class="form-item">
@@ -702,6 +785,113 @@ onMounted(() => {
             severity="primary"
             @click="saveItem"
             :loading="saving"
+          />
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Dialog AI Risk Generator -->
+    <Dialog
+      v-model:visible="aiDialogVisible"
+      header="AI Assistant — Rumuskan Pernyataan Risiko"
+      :modal="true"
+      :style="{ width: '680px', maxWidth: '95vw' }"
+      class="custom-dialog"
+    >
+      <div class="ai-generator-body">
+        <p class="ai-gen-intro">
+          Masukkan <strong>Sasaran OPD</strong>, <strong>Program</strong>, atau <strong>Kegiatan</strong> Anda.
+          AI akan menganalisis potensi kegagalan dan merumuskan pernyataan risiko sesuai standar Perwal No. 1/2026.
+        </p>
+
+        <div class="form-item">
+          <label class="form-label">Sasaran / Program / Kegiatan OPD</label>
+          <div style="display: flex; gap: 8px">
+            <InputText
+              v-model="aiSasaran"
+              placeholder="cth: Peningkatan kualitas pelayanan Puskesmas..."
+              class="w-full"
+              @keydown.enter="generateAiRisks"
+            />
+            <Button
+              label="Generate"
+              icon="pi pi-bolt"
+              severity="help"
+              :loading="aiGenerating"
+              :disabled="!aiSasaran.trim()"
+              @click="generateAiRisks"
+            />
+          </div>
+        </div>
+
+        <!-- Template Cepat -->
+        <div class="ai-quick-templates">
+          <span class="ai-quick-lbl">Contoh Sasaran:</span>
+          <div class="ai-quick-chips">
+            <button
+              v-for="(t, idx) in quickSasaranTemplates"
+              :key="idx"
+              type="button"
+              class="ai-quick-chip"
+              @click="aiSasaran = t; generateAiRisks()"
+            >
+              {{ t }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Hasil Generate -->
+        <div v-if="aiGenerating" class="ai-gen-loading">
+          <i class="pi pi-spin pi-spinner text-2xl text-indigo-600 mb-2" />
+          <p>AI sedang merumuskan pernyataan risiko, penyebab, dan dampak...</p>
+        </div>
+
+        <div v-else-if="aiSuggestions.length > 0" class="ai-suggestions-list">
+          <div class="ai-suggestions-header">
+            <strong>Rekomendasi Rumusan Risiko ({{ aiSuggestions.length }} Pilihan):</strong>
+            <span class="muted text-xs">Pilih salah satu untuk diterapkan langsung ke formulir.</span>
+          </div>
+
+          <div
+            v-for="(sug, idx) in aiSuggestions"
+            :key="idx"
+            class="ai-suggestion-card"
+          >
+            <div class="ai-sug-top">
+              <span class="ai-sug-badge">{{ sug.kategori || 'Risiko Operasional' }}</span>
+              <Button
+                label="Gunakan Risiko Ini"
+                icon="pi pi-check"
+                size="small"
+                severity="primary"
+                @click="useAiSuggestion(sug)"
+              />
+            </div>
+            <div class="ai-sug-title">
+              <i class="pi pi-exclamation-triangle text-amber-500 mr-1" />
+              <strong>{{ sug.uraian_risiko }}</strong>
+            </div>
+            <div class="ai-sug-details">
+              <div v-if="sug.penyebab" class="ai-sug-row">
+                <span class="ai-sug-lbl">Penyebab:</span>
+                <span>{{ sug.penyebab }}</span>
+              </div>
+              <div v-if="sug.dampak" class="ai-sug-row">
+                <span class="ai-sug-lbl">Dampak:</span>
+                <span>{{ sug.dampak }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <Button
+            label="Tutup"
+            severity="secondary"
+            variant="outlined"
+            @click="aiDialogVisible = false"
           />
         </div>
       </template>
@@ -1046,5 +1236,190 @@ onMounted(() => {
 
 .w-full {
   width: 100%;
+}
+
+/* AI Assist Banner */
+.ai-assist-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border: 1px solid #ddd6fe;
+  border-radius: 10px;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ai-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-banner-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.ai-banner-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #5b21b6;
+}
+
+.ai-banner-desc {
+  font-size: 0.74rem;
+  color: #6b21a8;
+  margin-top: 1px;
+}
+
+/* AI Generator Dialog */
+.ai-generator-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ai-gen-intro {
+  font-size: 0.84rem;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ai-quick-templates {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-quick-lbl {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ai-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-quick-chip {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  cursor: pointer;
+  transition: all 0.18s;
+  text-align: left;
+}
+
+.ai-quick-chip:hover {
+  background: #ede9fe;
+  border-color: #c4b5fd;
+  color: #6d28d9;
+}
+
+.ai-gen-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.ai-suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.ai-suggestions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.84rem;
+  color: #1e293b;
+}
+
+.ai-suggestion-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-suggestion-card:hover {
+  border-color: #818cf8;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+}
+
+.ai-sug-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-sug-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #4338ca;
+  background: #e0e7ff;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.ai-sug-title {
+  font-size: 0.88rem;
+  color: #0f172a;
+  line-height: 1.45;
+}
+
+.ai-sug-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8fafc;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
+  font-size: 0.78rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.ai-sug-row {
+  display: flex;
+  gap: 6px;
+}
+
+.ai-sug-lbl {
+  font-weight: 600;
+  color: #64748b;
+  flex-shrink: 0;
 }
 </style>
