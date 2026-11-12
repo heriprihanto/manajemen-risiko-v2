@@ -14,7 +14,7 @@ Group=www-data
 WorkingDirectory=/var/www/manajemen-risiko/BackEnd
 # EnvironmentFile berisi kredensial DB dsb. (BackEnd/.env)
 EnvironmentFile=/var/www/manajemen-risiko/BackEnd/.env
-ExecStart=/var/www/manajemen-risiko/BackEnd/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8077
+ExecStart=/var/www/manajemen-risiko/BackEnd/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 2707
 Restart=on-failure
 RestartSec=3
 

@@ -57,7 +57,7 @@ Panduan lengkap tersedia di [Dokumentasi Perubahan Alur Kuesioner CEE](docs/PERU
 
 ## Menjalankan
 
-### 1. Backend (port 8077)
+### 1. Backend (port 2707)
 Konfigurasi database ada di `BackEnd/.env` (target: `db_manajemen_risiko`).
 
 ```bash
@@ -65,9 +65,9 @@ cd BackEnd
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python init_db.py     # buat tabel + seed kuesioner + salin ta_opd (sekali saja)
-./run.sh                        # atau: .venv/bin/uvicorn app.main:app --reload --port 8077
+./run.sh                        # atau: .venv/bin/uvicorn app.main:app --reload --port 2707
 ```
-Dokumentasi API: http://localhost:8077/docs
+Dokumentasi API: http://localhost:2707/docs
 
 > `init_db.py` menyalin master OPD dari database `manajemen_risiko` (server yang sama)
 > bila tabel `ta_opd` di database target masih kosong.
@@ -79,7 +79,7 @@ npm install
 npm run dev
 ```
 Buka http://localhost:5173 — pilih **OPD** dan **Tahun** di kanan atas; seluruh form
-mengikuti konteks tersebut. Vite mem-proxy `/api` ke backend `:8077`.
+mengikuti konteks tersebut. Vite mem-proxy `/api` ke backend `:2707`.
 
 ## Struktur
 ```

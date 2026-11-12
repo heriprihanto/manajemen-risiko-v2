@@ -4,7 +4,7 @@ Aplikasi dilayani di sub-path:
 **https://monevrkpd.tegalkota.go.id/manajemen-risiko/**
 
 - Frontend: Vue SPA (Vite), base `/manajemen-risiko/`
-- Backend: FastAPI/uvicorn di `127.0.0.1:8077` (prefix internal `/api`)
+- Backend: FastAPI/uvicorn di `127.0.0.1:2707` (prefix internal `/api`)
 - Nginx me-reverse-proxy `/manajemen-risiko/api/` → backend (mengupas prefix)
 
 ## Berkas di folder ini

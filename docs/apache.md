@@ -1,7 +1,7 @@
 # 1. API — memetakan /manajemen-risiko/api/ ke backend (mengupas prefix)
 ProxyPreserveHost On
-ProxyPass        /manajemen-risiko/api/ http://127.0.0.1:8077/api/ timeout=120 retry=0
-ProxyPassReverse /manajemen-risiko/api/ http://127.0.0.1:8077/api/
+ProxyPass        /manajemen-risiko/api/ http://127.0.0.1:2707/api/ timeout=120 retry=0
+ProxyPassReverse /manajemen-risiko/api/ http://127.0.0.1:2707/api/
 RequestHeader set X-Forwarded-Proto  "https"
 RequestHeader set X-Forwarded-Prefix "/manajemen-risiko"
 
@@ -14,7 +14,7 @@ Alias /manajemen-risiko /var/www/manajemen-risiko/dist
 </Directory>
 
 
-ProxyPass /manajemen-risiko/api/ → http://127.0.0.1:8077/api/ — pemetaan ini otomatis mengupas prefix /manajemen-risiko, jadi backend tetap menerima /api/... tanpa perlu ubah kode (sama efeknya dengan trailing-slash di Nginx).
+ProxyPass /manajemen-risiko/api/ → http://127.0.0.1:2707/api/ — pemetaan ini otomatis mengupas prefix /manajemen-risiko, jadi backend tetap menerima /api/... tanpa perlu ubah kode (sama efeknya dengan trailing-slash di Nginx).
 Hanya sub-path /api/ yang di-proxy; sisanya disajikan sebagai file statis oleh Alias. mod_proxy diproses lebih dulu, jadi tidak bentrok dengan FallbackResource.
 FallbackResource /manajemen-risiko/index.html = SPA history mode (refresh di halaman dalam tidak 404).
 RequestHeader set X-Forwarded-Proto "https" penting karena Apache tidak mengirimkannya otomatis di balik TLS.
