@@ -4,7 +4,7 @@ import router from '@/router'
 // Base API mengikuti sub-path deploy: dev '/api', produksi '/manajemen-risiko/api'.
 // Bisa dioverride via VITE_API_BASE bila backend berada di origin/host lain.
 const apiBase = import.meta.env.VITE_API_BASE || `${import.meta.env.BASE_URL}api`
-const api = axios.create({ baseURL: apiBase })
+const api = axios.create({ baseURL: apiBase, withCredentials: true })
 
 // Endpoint survei publik (router prefix /survei) memakai token undangan
 // sendiri — jangan disentuh sesi JWT admin/OPD. Cocokkan awalan path saja agar
@@ -30,7 +30,7 @@ api.interceptors.response.use(
     const status = err.response?.status
     const url = err.config?.url || ''
     const onPublicPage = router.currentRoute.value.meta?.public
-    if (status === 401 && !url.includes('/auth/login') && !isSurvei(url) && !onPublicPage) {
+    if (status === 401 && !/^\/?auth\//.test(url) && !isSurvei(url) && !onPublicPage) {
       localStorage.removeItem('mr_token')
       localStorage.removeItem('mr_user')
       if (router.currentRoute.value.name !== 'login') {

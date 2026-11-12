@@ -87,7 +87,20 @@ async def generate_risk(
         raise HTTPException(400, "Sasaran/kegiatan tidak boleh kosong")
 
     config = _get_ai_config(session)
-    context = payload.get("context")
+    context = payload.get("context") or {}
+
+    # Muat katalog kamus risiko aktif agar AI dapat memetakan dan menyelaraskan rekomendasi
+    if not context.get("kamus_katalog"):
+        from app.models.kamus import KamusRisiko
+        from sqlmodel import select
+        kamus_rows = session.exec(
+            select(KamusRisiko.nama_risiko, KamusRisiko.kategori_risiko)
+            .where(KamusRisiko.aktif == 1)
+            .limit(60)
+        ).all()
+        if kamus_rows:
+            context["kamus_katalog"] = [f"{r[0]} [{r[1]}]" for r in kamus_rows]
+
     messages = build_risk_prompt(sasaran, context)
 
     try:

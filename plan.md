@@ -432,3 +432,39 @@ Status: **Selesai diimplementasikan secara menyeluruh**.
   - Form HTML Grid Tables (`.grid-table` pada Form 1a, 1b, 1c, 4, 5, 10): header `#f8fafc`, border `1px solid #e2e8f0`, dan zebra rows.
   - Rekapitulasi Tables (`.rekap-table` pada seluruh 7 komponen Rekapitulasi): header `#f8fafc`, border `1px solid #e2e8f0`, dan zebra rows.
   - Table Wrappers & Reports (`.table-wrap table`, `table.rpt`, `table.history`): diseragamkan dengan header `#f8fafc`, border `1px solid #e2e8f0`, dan zebra rows. 
+
+
+
+Buat modul baru UPR ( Unit Pemilik Risiko) 
+NIP | Nama | Jabatan | Eselon | Status  
+
+Tampilan Unit Pemilik Risiko (UPR)
+Title header jangan pakai Hero, pakai seperti modul Kamus Risiko
+Hapus card
+Unit Pemilik Risiko (UPR), penambahan field:
+- Tingkat Organisasi:
+  - UPR tingkat pemerintah daerah
+  - UPR tingkat unit Eselon II
+  - UPR tingkat unit Eselon III dan IV
+- Jabatan dalam UPR:
+  - Ketua
+  - Koordinator Teknis
+  - Anggota
+
+Status: **Selesai diimplementasikan secara menyeluruh**.
+- Database: Kolom `tingkat_organisasi` dan `jabatan_upr` ditambahkan ke `mr_upr` beserta indeksnya di `app/db.py` dan model SQLModel `Upr`.
+- Backend: Endpoint `/api/upr` mendukung filtering, CRUD, dan sinkronisasi otomatis kepala OPD lengkap dengan penentuan tingkat organisasi dan jabatan dalam UPR.
+- Frontend: Tampilan tabel `Upr.vue` memuat kolom NIP, Nama, Jabatan Kedinasan, Tingkat Organisasi (badge), Jabatan dalam UPR (badge), Eselon, Status, dan Aksi, lengkap dengan filter toolbar dan form dialog.
+
+
+Pada Identifikasi Risiko, apakah bisa ditambah dengan AI Assist ?
+
+
+Aplikasi ini akan dideploy di monevrkpd.tegalkota.go.id/manajemen-risiko
+Apakah bisa aplikasi ini tidak perlu login sendiri, hanya menggunakan Shared JWT Cookie dari aplikasi e-Monev yang ada di https://monevrkpd.tegalkota.go.id/emonev2027/admin/
+source code e-Monev ada di /home/herry/1_Project/2026/EMONEV_2027/
+Pengguna cukup login di aplikasi e-Monev (tidak perlu login di aplikasi manajemen risiko ini)
+
+
+Untuk implementasi aplikasi manajemen risiko ini masih development di local, http://localhost:5173/,
+saya test belum bisa akses, selalu redirect ke https://monevrkpd.tegalkota.go.id/emonev2027/admin/

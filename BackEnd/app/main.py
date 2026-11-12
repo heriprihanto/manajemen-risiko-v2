@@ -21,6 +21,7 @@ from app.routers import (
     tata_kelola,
     selera,
     ai,
+    upr,
 )
 
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -55,6 +56,7 @@ app.include_router(rekapitulasi.router, prefix=API, dependencies=scoped)
 app.include_router(tata_kelola.router, prefix=API, dependencies=[UserDep])
 app.include_router(selera.router, prefix=API, dependencies=[UserDep])
 app.include_router(ai.router, prefix=API, dependencies=[UserDep])
+app.include_router(upr.router, prefix=API, dependencies=[UserDep])
 
 
 @app.on_event("startup")

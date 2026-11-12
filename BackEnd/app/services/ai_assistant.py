@@ -38,25 +38,35 @@ Aturan:
 - Gunakan terminologi Perwal No. 1/2026 (Risiko Strategis Pemda, Strategis OPD, Operasional OPD)
 """
 
-RISK_GENERATOR_PROMPT = """Berdasarkan sasaran/kegiatan berikut, bantu rumuskan risiko-risiko yang mungkin terjadi.
+RISK_GENERATOR_PROMPT = """Berdasarkan sasaran, tujuan, atau kegiatan pemerintah daerah berikut, bantu rumuskan identifikasi risiko-risiko potensial sesuai standar Manajemen Risiko (Perwal No. 1 Tahun 2026).
 
 Sasaran / Kegiatan: {sasaran}
 {context_info}
 Instruksi:
-- Rumuskan 3 risiko potensial dengan format:
-  • Uraian Risiko: pernyataan risiko (Apa kejadiannya?)
-  • Penyebab: akar penyebab utama
-  • Dampak: konsekuensi jika risiko terjadi
-  • Kategori: (Operasional / Keuangan / Kebijakan / Kepatuhan / Reputasi / Fraud / Lingkungan)
-- Setiap risiko harus spesifik, terukur, dan relevan dengan konteks OPD pemerintah daerah.
+- Rumuskan 3–4 risiko potensial yang spesifik, realistis, dan relevan dengan tugas fungsi pemerintah daerah.
+- Untuk setiap risiko, sertakan rincian lengkap:
+  • uraian_risiko: pernyataan peristiwa risiko (kejadian yang berpotensi menghambat sasaran)
+  • keterangan_risiko: penjelasan konteks atau latar belakang singkat risiko
+  • penyebab: akar penyebab masalah (sebab_uraian)
+  • sebab_sumber: "Internal" / "Eksternal" / "Internal/Eksternal"
+  • cuc: "C" (apabila dapat dikendalikan OPD) atau "UC" (apabila tidak dapat dikendalikan langsung)
+  • dampak: konsekuensi/kerugian terhadap capaian kinerja, keuangan, atau layanan (dampak_uraian)
+  • dampak_pihak_terkena: pihak yang terkena dampak langsung (misal: "Masyarakat", "Pemerintah Kota", "OPD Terkait")
+  • kategori: pilih salah satu kategori baku: ("Risiko Operasional", "Risiko Kebijakan", "Risiko Kepatuhan", "Risiko Fraud/Kecurangan", "Risiko Reputasi", "Risiko Legal", "Risiko SPBE", "Risiko Kemitraan")
+  • pemilik_risiko: jabatan yang paling tepat menjadi penanggung jawab (misal: "Kepala Bidang ...", "Kepala OPD")
 
-Jawab dalam format JSON array:
+Jawab HANYA dalam format JSON array valid:
 [
   {{
     "uraian_risiko": "...",
+    "keterangan_risiko": "...",
     "penyebab": "...",
+    "sebab_sumber": "Internal",
+    "cuc": "C",
     "dampak": "...",
-    "kategori": "..."
+    "dampak_pihak_terkena": "...",
+    "kategori": "Risiko Operasional",
+    "pemilik_risiko": "..."
   }}
 ]
 """
@@ -347,6 +357,9 @@ def build_risk_prompt(sasaran: str, context: dict | None = None) -> list[dict]:
             parts.append(f"Jenis Risiko: {context['jenis_risiko']}")
         if context.get("tahun"):
             parts.append(f"Tahun: {context['tahun']}")
+        if context.get("kamus_katalog"):
+            katalog_sample = "\n  * ".join(context["kamus_katalog"][:50])
+            parts.append(f"Referensi Kamus Risiko Baku Daerah (utamakan memilih atau menyelaraskan dengan uraian ini jika sesuai):\n  * {katalog_sample}")
         if parts:
             context_info = "Konteks:\n" + "\n".join(f"- {p}" for p in parts)
     return [

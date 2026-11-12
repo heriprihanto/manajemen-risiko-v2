@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
+  { path: '/session-error', name: 'session-error', component: () => import('@/views/SessionError.vue'), meta: { public: true, title: 'Sesi e-Monev' } },
   { path: '/selera-risiko', name: 'selera-risiko', component: () => import('@/views/SeleraRisiko.vue'), meta: { title: 'Selera Risiko' } },
   { path: '/tata-kelola', name: 'tata-kelola', component: () => import('@/views/TataKelola.vue'), meta: { title: 'Tata Kelola Risiko' } },
   { path: '/risiko/:id/detail', name: 'detail-risiko', component: () => import('@/views/DetailRisiko.vue'), meta: { title: 'Detail Pengelolaan Risiko' } },
@@ -33,6 +34,7 @@ const routes = [
   { path: '/form2c', redirect: () => ({ name: 'konteks', query: { tab: '2c' } }) },
 
   { path: '/kamus-risiko', name: 'kamus-risiko', component: () => import('@/views/KamusRisiko.vue'), meta: { title: 'Kamus Risiko' } },
+  { path: '/upr', name: 'upr', component: () => import('@/views/Upr.vue'), meta: { title: 'UPR (Unit Pemilik Risiko)' } },
   { path: '/identifikasi-risiko', name: 'identifikasi-risiko', component: () => import('@/views/IdentifikasiRisiko.vue'), meta: { title: 'Identifikasi Risiko' } },
   { path: '/form3a', redirect: () => ({ name: 'identifikasi-risiko', query: { tab: '3a' } }) },
   { path: '/form3b', redirect: () => ({ name: 'identifikasi-risiko', query: { tab: '3b' } }) },
@@ -64,6 +66,18 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const { useAuthStore } = await import('@/stores/auth')
   const auth = useAuthStore()
+  if (to.meta.public && !to.meta.guestOnly) return true
+  try {
+    await auth.initialize()
+    if (auth.ssoEnabled && (!to.meta.public || to.name === 'login')) {
+      if (!await auth.refreshSession()) {
+        auth.redirectToLogin(to.name === 'login' ? (typeof to.query.redirect === 'string' ? to.query.redirect : '/') : to.fullPath)
+        return false
+      }
+    }
+  } catch (error) {
+    return { name: 'session-error', query: { blocked: error.response?.status === 403 ? '1' : undefined } }
+  }
   if (to.meta.guestOnly && auth.isAuthenticated) {
     return { name: 'dashboard' }
   }

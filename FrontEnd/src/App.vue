@@ -59,8 +59,13 @@ router.onError(() => {
   navigating.value = false
 })
 
-function logout() {
-  auth.logout()
+async function logout() {
+  try {
+    await auth.logout()
+  } catch {
+    window.alert('Logout belum berhasil. Silakan coba lagi ketika layanan e-Monev tersedia.')
+    return
+  }
   ctx.$reset()
   router.push({ name: 'login' })
 }
@@ -101,6 +106,7 @@ const navGroups = [
     label: 'Pengelolaan Risiko',
     items: [
       ['selera-risiko', 'Selera Risiko', 'pi-sliders-h'],
+      ['upr', 'UPR (Unit Pemilik Risiko)', 'pi-users'],
       ['kamus-risiko', 'Kamus Risiko', 'pi-book'],
       ['konteks', 'Penetapan Konteks', 'pi-sitemap'],
       ['identifikasi-risiko', 'Identifikasi Risiko', 'pi-flag'],

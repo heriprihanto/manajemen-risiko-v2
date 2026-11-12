@@ -7,6 +7,7 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
+import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import api from '@/api'
@@ -77,7 +78,7 @@ const konteksKey = computed({
     editing.value.konteks_id != null
       ? `${editing.value.konteks_sumber || 'b'}:${editing.value.konteks_id}`
       : null,
-  set: () => {}, // ditulis lewat applyKonteks
+  set: () => { }, // ditulis lewat applyKonteks
 })
 const selectedKonteks = computed(() =>
   konteksOptions.value.find((k) => k._key === konteksKey.value),
@@ -372,6 +373,171 @@ function remove(r) {
     },
   })
 }
+
+// ─── AI Assist Identifikasi Risiko ──────────────────────────────────
+const aiDialogVisible = ref(false)
+const aiSasaran = ref('')
+const aiGenerating = ref(false)
+const aiSuggestions = ref([])
+
+const quickSasaranSuggestions = computed(() => {
+  if (isOperasional.value) {
+    return [
+      'Pemeliharaan berkala infrastruktur jalan dan drainase perkotaan',
+      'Pengelolaan dan pelayanan perizinan berusaha OSS / PTSP',
+      'Penyelenggaraan pelayanan kesehatan dasar dan rujukan di Puskesmas',
+      'Pengelolaan sistem informasi administrasi kepegawaian daerah',
+      'Pemungutan dan penatausahaan pendapatan asli daerah (pajak & retribusi)',
+    ]
+  } else if (isStrategisOpd.value) {
+    return [
+      'Peningkatan kualitas infrastruktur dan konektivitas perkotaan yang berkelanjutan',
+      'Peningkatan kualitas dan keterjangkauan pelayanan kesehatan masyarakat',
+      'Peningkatan akuntabilitas kinerja dan tata kelola pemerintahan yang bersih',
+      'Penguatan kemandirian fiskal daerah melalui optimalisasi PAD',
+    ]
+  } else {
+    return [
+      'Mewujudkan tata kelola pemerintahan yang adaptif, berintegritas, dan berbasis digital',
+      'Mewujudkan pertumbuhan ekonomi daerah yang inklusif dan berdaya saing tinggi',
+      'Peningkatan kualitas sumber daya manusia dan taraf kesejahteraan masyarakat',
+    ]
+  }
+})
+
+function getEffectiveSasaran() {
+  if (isOperasional.value) {
+    return editing.value.kegiatan || (selectedKonteks.value ? `${selectedKonteks.value.keluaran_hasil_kegiatan || ''} ${selectedKonteks.value.keluaran_sub_kegiatan || ''}`.trim() : '')
+  } else if (isStrategisOpd.value) {
+    return editing.value.tujuan_sasaran || (selectedKonteks.value ? konteksLabel(selectedKonteks.value) : '')
+  } else {
+    return editing.value.tujuan_sasaran || (selectedIku.value ? `${selectedIku.value.label || ''} (${selectedIku.value.induk || ''})`.trim() : '')
+  }
+}
+
+function openAiDialog() {
+  const currentSasaran = getEffectiveSasaran()
+  if (currentSasaran && !aiSasaran.value) {
+    aiSasaran.value = currentSasaran
+  }
+  aiDialogVisible.value = true
+}
+
+function openAiFromForm() {
+  const currentSasaran = getEffectiveSasaran()
+  if (currentSasaran) {
+    aiSasaran.value = currentSasaran
+  }
+  aiDialogVisible.value = true
+}
+
+function findBestKamusMatch(sug) {
+  if (!kamusList.value.length) return null
+  const targetUraian = (sug.uraian_risiko || '').toLowerCase()
+  const targetKat = (sug.kategori || '').toLowerCase()
+
+  // 1. Pencarian persis (exact match)
+  let m = kamusList.value.find((k) => k.nama_risiko.trim().toLowerCase() === targetUraian)
+  if (m) return m
+
+  // 2. Pencarian kemiripan kata kunci (substring match)
+  m = kamusList.value.find(
+    (k) =>
+      targetUraian.includes(k.nama_risiko.trim().toLowerCase()) ||
+      k.nama_risiko.trim().toLowerCase().includes(targetUraian),
+  )
+  if (m) return m
+
+  // 3. Pencarian berdasarkan kategori risiko
+  m = kamusList.value.find((k) => (k.kategori_risiko || '').toLowerCase() === targetKat)
+  if (m) return m
+
+  return kamusList.value[0] || null
+}
+
+async function generateAiRisks() {
+  if (!aiSasaran.value.trim()) {
+    toast.add({ severity: 'warn', summary: 'AI Assist', detail: 'Sasaran / kegiatan harus diisi terlebih dahulu', life: 2500 })
+    return
+  }
+  aiGenerating.value = true
+  aiSuggestions.value = []
+  try {
+    const { data } = await api.post('/ai/generate-risk', {
+      sasaran: aiSasaran.value.trim(),
+      context: {
+        opd: ctx.opd?.nama_pd,
+        tahun: ctx.tahun,
+        jenis_risiko: props.jenis,
+      },
+    })
+    const list = data.suggestions || []
+    aiSuggestions.value = list.map((item) => ({
+      ...item,
+      matched_kamus: findBestKamusMatch(item),
+    }))
+    if (!aiSuggestions.value.length) {
+      toast.add({ severity: 'info', summary: 'AI Assist', detail: 'Tidak ada rekomendasi risiko yang terstruktur dari AI.', life: 3000 })
+    }
+  } catch (err) {
+    const msg = err.response?.data?.detail || err.message || 'Gagal generate rekomendasi risiko'
+    toast.add({ severity: 'error', summary: 'Gagal AI Assist', detail: msg, life: 4000 })
+  } finally {
+    aiGenerating.value = false
+  }
+}
+
+function applyAiSuggestion(sug) {
+  if (!dialog.value) {
+    openNew()
+  }
+
+  // Set sasaran jika belum ada
+  if (isOperasional.value) {
+    if (!editing.value.kegiatan) editing.value.kegiatan = aiSasaran.value
+  } else {
+    if (!editing.value.tujuan_sasaran) editing.value.tujuan_sasaran = aiSasaran.value
+  }
+
+  // Pilih kamus risiko yang cocok
+  const km = sug.matched_kamus || findBestKamusMatch(sug)
+  if (km) {
+    editing.value.uraian_risiko = km.nama_risiko
+    editing.value.kategori_risiko = km.kategori_risiko
+    if (!editing.value.kode_risiko) {
+      editing.value.kode_risiko = km.kode_risiko
+    }
+    const ketParts = []
+    if (sug.uraian_risiko && sug.uraian_risiko.trim().toLowerCase() !== km.nama_risiko.trim().toLowerCase()) {
+      ketParts.push(`[Saran AI: ${sug.uraian_risiko}]`)
+    }
+    if (sug.keterangan_risiko) {
+      ketParts.push(sug.keterangan_risiko)
+    }
+    editing.value.keterangan_risiko = ketParts.join('\n')
+  } else {
+    editing.value.uraian_risiko = sug.uraian_risiko
+    editing.value.kategori_risiko = sug.kategori
+    editing.value.keterangan_risiko = sug.keterangan_risiko || ''
+  }
+
+  editing.value.sebab_uraian = sug.penyebab || ''
+  editing.value.sebab_sumber = sug.sebab_sumber || 'Internal'
+  editing.value.cuc = sug.cuc || 'C'
+  editing.value.dampak_uraian = sug.dampak || ''
+  editing.value.dampak_pihak_terkena = sug.dampak_pihak_terkena || ''
+  if (sug.pemilik_risiko && !editing.value.pemilik_risiko) {
+    editing.value.pemilik_risiko = sug.pemilik_risiko
+  }
+
+  aiDialogVisible.value = false
+  toast.add({
+    severity: 'success',
+    summary: 'Rekomendasi Diterapkan',
+    detail: 'Formulir identifikasi risiko berhasil diisi dari rekomendasi AI',
+    life: 2500,
+  })
+}
 onMounted(() => {
   load()
   loadBidangUrusan()
@@ -384,6 +550,8 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
   <div class="toolbar">
     <span class="muted">{{ jenisLabel[jenis] }} — {{ ctx.opd?.nama_pd }} — {{ ctx.tahun }}</span>
     <div class="spacer" />
+    <Button label="AI Assist" icon="pi pi-sparkles" severity="help" variant="outlined" size="small"
+      @click="openAiDialog" />
     <Button label="Tambah Identifikasi Risiko" icon="pi pi-plus" size="small" @click="openNew" />
   </div>
 
@@ -412,7 +580,8 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
       <Column field="uraian_risiko" header="Risiko" :style="{ minWidth: '240px' }">
         <template #body="{ data }">
           <div style="font-weight: 500;">{{ data.uraian_risiko }}</div>
-          <div v-if="data.keterangan_risiko" class="muted" style="font-size: 0.78rem; margin-top: 4px; line-height: 1.35; white-space: pre-line;">
+          <div v-if="data.keterangan_risiko" class="muted"
+            style="font-size: 0.78rem; margin-top: 4px; line-height: 1.35; white-space: pre-line;">
             {{ data.keterangan_risiko }}
           </div>
         </template>
@@ -435,7 +604,9 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
           <Button icon="pi pi-trash" text rounded size="small" severity="danger" @click="remove(data)" />
         </template>
       </Column>
-      <template #empty><div class="muted" style="padding: 14px">Belum ada risiko untuk jenis ini.</div></template>
+      <template #empty>
+        <div class="muted" style="padding: 14px">Belum ada risiko untuk jenis ini.</div>
+      </template>
     </DataTable>
   </div>
 
@@ -444,17 +615,9 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
       <template v-if="isOperasional">
         <div style="grid-column: 1 / -1">
           <label class="muted lbl">Bidang Urusan</label>
-          <Select
-            v-model="editing.id_bidang_urusan"
-            :options="bidangUrusanOptions"
-            optionLabel="label"
-            optionValue="id"
-            filter
-            filterPlaceholder="Cari bidang urusan..."
-            placeholder="Pilih Bidang Urusan"
-            style="width: 100%"
-            @change="onBidangUrusanChange"
-          >
+          <Select v-model="editing.id_bidang_urusan" :options="bidangUrusanOptions" optionLabel="label" optionValue="id"
+            filter filterPlaceholder="Cari bidang urusan..." placeholder="Pilih Bidang Urusan" style="width: 100%"
+            @change="onBidangUrusanChange">
             <template #option="{ option }">
               <div style="display: flex; flex-direction: column; gap: 2px;">
                 <div style="font-weight: 500;">
@@ -470,16 +633,8 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
         </div>
         <div style="grid-column: 1 / -1">
           <label class="muted lbl">Indikator Subkegiatan (dari Form 2.c)</label>
-          <Select
-            :modelValue="konteksKey"
-            :options="konteksOptions"
-            optionLabel="_label"
-            optionValue="_key"
-            filter
-            placeholder="Pilih subkegiatan yang dinilai"
-            style="width: 100%"
-            @change="applyKonteks"
-          />
+          <Select :modelValue="konteksKey" :options="konteksOptions" optionLabel="_label" optionValue="_key" filter
+            placeholder="Pilih subkegiatan yang dinilai" style="width: 100%" @change="applyKonteks" />
           <small v-if="!konteksOptions.length" class="muted">
             Belum ada subkegiatan dipilih pada Form 2.c — Konteks Operasional OPD untuk OPD & tahun ini.
           </small>
@@ -487,32 +642,22 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
         <div v-if="selectedKonteks" style="grid-column: 1 / -1" class="konteks-ref">
           <div><span class="muted">Program:</span> {{ selectedKonteks.program || '—' }}</div>
           <div><span class="muted">Kegiatan:</span> {{ selectedKonteks.keluaran_hasil_kegiatan || '—' }}</div>
-          <div><span class="muted">Indikator Subkegiatan:</span> {{ selectedKonteks.keluaran_sub_kegiatan || '—' }}</div>
+          <div><span class="muted">Indikator Subkegiatan:</span> {{ selectedKonteks.keluaran_sub_kegiatan || '—' }}
+          </div>
         </div>
         <div>
           <label class="muted lbl">Tahap Kegiatan</label>
-          <Select
-            v-model="editing.tahap_kegiatan"
-            :options="['Pelaksanaan', 'Pertanggungjawaban','Penatausahaan','Pelaporan','Pemantauan dan evaluasi']"
-            placeholder="Pilih tahap"
-            style="width: 100%"
-          />
+          <Select v-model="editing.tahap_kegiatan"
+            :options="['Pelaksanaan', 'Pertanggungjawaban', 'Penatausahaan', 'Pelaporan', 'Pemantauan dan evaluasi']"
+            placeholder="Pilih tahap" style="width: 100%" />
         </div>
       </template>
       <template v-else-if="isStrategisOpd">
         <div style="grid-column: 1 / -1">
           <label class="muted lbl">Bidang Urusan</label>
-          <Select
-            v-model="editing.id_bidang_urusan"
-            :options="bidangUrusanOptions"
-            optionLabel="label"
-            optionValue="id"
-            filter
-            filterPlaceholder="Cari bidang urusan..."
-            placeholder="Pilih Bidang Urusan"
-            style="width: 100%"
-            @change="onBidangUrusanChange"
-          >
+          <Select v-model="editing.id_bidang_urusan" :options="bidangUrusanOptions" optionLabel="label" optionValue="id"
+            filter filterPlaceholder="Cari bidang urusan..." placeholder="Pilih Bidang Urusan" style="width: 100%"
+            @change="onBidangUrusanChange">
             <template #option="{ option }">
               <div style="display: flex; flex-direction: column; gap: 2px;">
                 <div style="font-weight: 500;">
@@ -529,16 +674,9 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
 
         <div style="grid-column: 1 / -1">
           <label class="muted lbl">Tujuan/Sasaran/IKU/Program (dari Form 2.b)</label>
-          <Select
-            :modelValue="konteksKey"
-            :options="konteksOptions"
-            optionLabel="_label"
-            optionValue="_key"
-            filter
-            placeholder="Pilih konteks (Form 2.b / indikator program Form 2.c)"
-            style="width: 100%"
-            @change="applyKonteks"
-          />
+          <Select :modelValue="konteksKey" :options="konteksOptions" optionLabel="_label" optionValue="_key" filter
+            placeholder="Pilih konteks (Form 2.b / indikator program Form 2.c)" style="width: 100%"
+            @change="applyKonteks" />
           <small v-if="!konteksOptions.length" class="muted">
             Belum ada data pada Form 2.b / Form 2.c untuk OPD & tahun ini.
           </small>
@@ -563,17 +701,9 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
       <template v-else>
         <div style="grid-column: 1 / -1">
           <label class="muted lbl">Bidang Urusan</label>
-          <Select
-            v-model="editing.id_bidang_urusan"
-            :options="bidangUrusanOptions"
-            optionLabel="label"
-            optionValue="id"
-            filter
-            filterPlaceholder="Cari bidang urusan..."
-            placeholder="Pilih Bidang Urusan"
-            style="width: 100%"
-            @change="onBidangUrusanChange"
-          >
+          <Select v-model="editing.id_bidang_urusan" :options="bidangUrusanOptions" optionLabel="label" optionValue="id"
+            filter filterPlaceholder="Cari bidang urusan..." placeholder="Pilih Bidang Urusan" style="width: 100%"
+            @change="onBidangUrusanChange">
             <template #option="{ option }">
               <div style="display: flex; flex-direction: column; gap: 2px;">
                 <div style="font-weight: 500;">
@@ -589,17 +719,9 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
         </div>
         <div style="grid-column: 1 / -1">
           <label class="muted lbl">Indikator Kinerja (dari Form 2.a)</label>
-          <Select
-            v-model="editing.indikator_kinerja"
-            :options="ikuSelectOptions"
-            optionLabel="label"
-            optionValue="value"
-            filter
-            showClear
-            placeholder="Pilih IKU yang dinilai"
-            style="width: 100%"
-            @change="applyIku"
-          >
+          <Select v-model="editing.indikator_kinerja" :options="ikuSelectOptions" optionLabel="label"
+            optionValue="value" filter showClear placeholder="Pilih IKU yang dinilai" style="width: 100%"
+            @change="applyIku">
             <template #option="{ option }">
               <div>
                 <div>{{ option.label }}</div>
@@ -628,26 +750,25 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
           <label class="muted lbl" style="margin-bottom: 0;">
             Uraian Risiko <span style="color: #ef4444;">*</span>
           </label>
-          <small style="font-size: 0.75rem; color: #4f46e5; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
-            <i class="pi pi-book" style="font-size: 0.75rem;"></i>
-            Pilih dari Kamus Risiko
-          </small>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <Button type="button" label="✨ AI Assist" size="small" severity="help" text
+              style="padding: 2px 8px; font-size: 0.78rem;" @click="openAiFromForm" />
+            <small
+              style="font-size: 0.75rem; color: #4f46e5; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+              <i class="pi pi-book" style="font-size: 0.75rem;"></i>
+              Pilih dari Kamus Risiko
+            </small>
+          </div>
         </div>
-        <Select
-          v-model="editing.uraian_risiko"
-          :options="kamusOptions"
-          optionLabel="label"
-          optionValue="value"
-          filter
+        <Select v-model="editing.uraian_risiko" :options="kamusOptions" optionLabel="label" optionValue="value" filter
           filterPlaceholder="Ketik untuk mencari uraian atau kode di Kamus Risiko..."
-          placeholder="Pilih Uraian Risiko dari Kamus..."
-          style="width: 100%"
-          @change="onKamusSelect"
-        >
+          placeholder="Pilih Uraian Risiko dari Kamus..." style="width: 100%" @change="onKamusSelect">
           <template #value="{ value, placeholder }">
             <div v-if="value" style="display: flex; align-items: center; gap: 8px; max-width: 100%; overflow: hidden;">
-              <span v-if="selectedKamusItem?.kode_risiko" class="code-badge-sm">{{ selectedKamusItem.kode_risiko }}</span>
-              <span style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ value }}</span>
+              <span v-if="selectedKamusItem?.kode_risiko" class="code-badge-sm">{{ selectedKamusItem.kode_risiko
+                }}</span>
+              <span style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ value
+                }}</span>
             </div>
             <span v-else class="p-placeholder">{{ placeholder }}</span>
           </template>
@@ -667,58 +788,51 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
       </div>
       <div style="grid-column: 1 / -1">
         <label class="muted lbl">Keterangan Uraian Risiko</label>
-        <InputText
-          v-model="editing.keterangan_risiko"
-          placeholder="Keterangan atau rincian tambahan uraian risiko (opsional)..."
-          style="width: 100%"
-        />
+        <InputText v-model="editing.keterangan_risiko"
+          placeholder="Keterangan atau rincian tambahan uraian risiko (opsional)..." style="width: 100%" />
       </div>
       <div>
         <label class="muted lbl">Kategori Risiko</label>
-        <InputText
-          :modelValue="editing.kategori_risiko"
-          readonly
-          placeholder="Kategori Risiko"
-          style="width: 100%; background: var(--p-surface-100, #f4f4f5); cursor: not-allowed;"
-        />
+        <InputText :modelValue="editing.kategori_risiko" readonly placeholder="Kategori Risiko"
+          style="width: 100%; background: var(--p-surface-100, #f4f4f5); cursor: not-allowed;" />
         <small class="muted" style="font-size: 0.72rem; display: block; margin-top: 2px;">
           Kategori Risiko
         </small>
       </div>
       <div>
         <label class="muted lbl">Kode Risiko</label>
-        <InputText
-          v-model="editing.kode_risiko"
+        <InputText v-model="editing.kode_risiko"
           :placeholder="isOperasional ? 'Contoh: ROO.26.03.02.05.001' : (isStrategisOpd ? 'Contoh: RSO.26.02.02.05.001' : 'Contoh: RSP.26.01.02.05.001')"
-          style="width: 100%"
-        />
+          style="width: 100%" />
         <small class="muted" style="font-size: 0.72rem; display: block; margin-top: 2px;">
-          Format otomatis: {{ isOperasional ? 'ROO' : (isStrategisOpd ? 'RSO' : 'RSP') }}.[th].[jenis].[urusan].[opd].[urut]
+          Format otomatis: {{ isOperasional ? 'ROO' : (isStrategisOpd ? 'RSO' : 'RSP')
+          }}.[th].[jenis].[urusan].[opd].[urut]
         </small>
       </div>
-      <div>
+      <div style="grid-column: 1 / -1">
         <label class="muted lbl">Pemilik Risiko</label>
         <InputText v-model="editing.pemilik_risiko" style="width: 100%" />
       </div>
-      <div>
+      <div style="grid-column: 1 / -1">
         <label class="muted lbl">Sebab (Uraian)</label>
-        <Textarea v-model="editing.sebab_uraian" autoResize rows="2" style="width: 100%" />
+        <Textarea v-model="editing.sebab_uraian" autoResize rows="4" style="width: 100%" />
       </div>
       <div>
         <label class="muted lbl">Sumber Sebab</label>
-        <Select v-model="editing.sebab_sumber" :options="['Internal', 'Eksternal', 'Internal/Eksternal']" style="width: 100%" />
+        <Select v-model="editing.sebab_sumber" :options="['Internal', 'Eksternal', 'Internal/Eksternal']"
+          style="width: 100%" />
       </div>
       <div>
         <label class="muted lbl">C (Controllable) / UC (Uncontrollable)</label>
         <Select v-model="editing.cuc" :options="['C', 'UC']" style="width: 100%" />
       </div>
-      <div>
+      <div style="grid-column: 1 / -1">
         <label class="muted lbl">Dampak — Pihak Terkena</label>
         <InputText v-model="editing.dampak_pihak_terkena" style="width: 100%" />
       </div>
       <div style="grid-column: 1 / -1">
         <label class="muted lbl">Dampak (Uraian)</label>
-        <Textarea v-model="editing.dampak_uraian" autoResize rows="2" style="width: 100%" />
+        <Textarea v-model="editing.dampak_uraian" autoResize rows="4" style="width: 100%" />
       </div>
     </div>
     <template #footer>
@@ -726,10 +840,148 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
       <Button label="Simpan" icon="pi pi-check" @click="save" />
     </template>
   </Dialog>
+
+  <!-- Modal AI Assist Rekomendasi Identifikasi Risiko -->
+  <Dialog v-model:visible="aiDialogVisible" header="✨ AI Assist: Rekomendasi Identifikasi Risiko" modal
+    style="width: 860px; max-width: 95vw;">
+    <div class="ai-modal-content">
+      <div class="ai-banner">
+        <div class="ai-banner-icon">
+          <i class="pi pi-sparkles" style="font-size: 1.35rem; color: #7c3aed;"></i>
+        </div>
+        <div class="ai-banner-text">
+          <div style="font-weight: 600; color: #4c1d95; font-size: 0.95rem;">
+            Asisten AI Identifikasi Risiko (Berdasarkan Kamus Risiko Terintegrasi)
+          </div>
+          <div style="font-size: 0.82rem; color: #6d28d9; margin-top: 2px;">
+            Masukkan sasaran strategis, program, atau kegiatan OPD Anda. AI akan menganalisis potensi risiko, penyebab,
+            dampak, dan secara otomatis memetakan dengan katalog Kamus Risiko resmi.
+          </div>
+        </div>
+      </div>
+
+      <div class="ai-input-section">
+        <label class="lbl" style="font-weight: 600; color: #1e293b;">
+          Sasaran / Kegiatan yang Dianalisis:
+        </label>
+        <Textarea v-model="aiSasaran" rows="2" autoResize
+          placeholder="Contoh: Pengelolaan dan pemeliharaan berkala infrastruktur jalan dan drainase perkotaan..."
+          style="width: 100%; font-size: 0.9rem;" />
+
+        <div style="margin-top: 8px;">
+          <span class="muted" style="font-size: 0.75rem; font-weight: 500;">
+            💡 Contoh Cepat / Template:
+          </span>
+          <div class="quick-chip-container">
+            <button v-for="(tip, idx) in quickSasaranSuggestions" :key="idx" type="button" class="quick-chip-btn"
+              @click="aiSasaran = tip">
+              {{ tip }}
+            </button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+          <Button label="Generate Rekomendasi Risiko" icon="pi pi-sparkles" severity="help" :loading="aiGenerating"
+            :disabled="!aiSasaran.trim()" @click="generateAiRisks" />
+        </div>
+      </div>
+
+      <!-- Hasil Rekomendasi AI -->
+      <div v-if="aiSuggestions.length > 0" class="ai-results-section">
+        <div class="ai-results-header">
+          <span style="font-weight: 600; color: #1e293b; font-size: 0.9rem;">
+            Ditemukan {{ aiSuggestions.length }} Rekomendasi Risiko
+          </span>
+          <small class="muted" style="font-size: 0.75rem;">
+            Pilih dan terapkan rekomendasi di bawah langsung ke formulir identifikasi
+          </small>
+        </div>
+
+        <div class="ai-card-list">
+          <div v-for="(sug, idx) in aiSuggestions" :key="idx" class="ai-card">
+            <div class="ai-card-top">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span class="ai-index-badge">#{{ idx + 1 }}</span>
+                <span v-if="sug.kategori" class="category-tag-sm">{{ sug.kategori }}</span>
+                <span v-if="sug.cuc" class="code-badge-sm">{{ sug.cuc === 'C' ? 'Controllable (C)' : `Uncontrollable
+                  (UC)`
+                }}</span>
+                <span v-if="sug.sebab_sumber" class="source-badge-sm">{{ sug.sebab_sumber }}</span>
+              </div>
+              <Button label="Terapkan ke Formulir" icon="pi pi-arrow-right" size="small" severity="success"
+                @click="applyAiSuggestion(sug)" />
+            </div>
+
+            <div class="ai-card-body">
+              <div class="ai-risk-title">
+                {{ sug.uraian_risiko }}
+              </div>
+              <div v-if="sug.keterangan_risiko" class="ai-risk-desc">
+                {{ sug.keterangan_risiko }}
+              </div>
+
+              <!-- Pemetaan Kamus Risiko -->
+              <div class="ai-kamus-match-box">
+                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                  <i class="pi pi-book" style="color: #4f46e5; font-size: 0.8rem;"></i>
+                  <span style="font-size: 0.75rem; font-weight: 600; color: #4338ca;">
+                    Katalog Kamus Risiko Terpilih (Wajib Valid):
+                  </span>
+                </div>
+                <Select v-model="sug.matched_kamus" :options="kamusList" optionLabel="nama_risiko" filter
+                  filterPlaceholder="Ganti padanan Kamus Risiko..." placeholder="Pilih item kamus risiko yang sesuai"
+                  style="width: 100%; font-size: 0.82rem;">
+                  <template #value="{ value }">
+                    <div v-if="value" style="display: flex; align-items: center; gap: 6px;">
+                      <span class="code-badge-sm">{{ value.kode_risiko }}</span>
+                      <span style="font-weight: 500;">{{ value.nama_risiko }}</span>
+                    </div>
+                  </template>
+                  <template #option="{ option }">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span class="code-badge-sm">{{ option.kode_risiko }}</span>
+                      <span>{{ option.nama_risiko }}</span>
+                    </div>
+                  </template>
+                </Select>
+              </div>
+
+              <div class="ai-grid-details">
+                <div class="ai-detail-item">
+                  <span class="ai-detail-lbl">Sebab:</span>
+                  <span>{{ sug.penyebab || '—' }}</span>
+                </div>
+                <div class="ai-detail-item">
+                  <span class="ai-detail-lbl">Dampak:</span>
+                  <span>{{ sug.dampak || '—' }}</span>
+                </div>
+                <div class="ai-detail-item">
+                  <span class="ai-detail-lbl">Pihak Terkena:</span>
+                  <span>{{ sug.dampak_pihak_terkena || '—' }}</span>
+                </div>
+                <div class="ai-detail-item">
+                  <span class="ai-detail-lbl">Pemilik Risiko:</span>
+                  <span>{{ sug.pemilik_risiko || '—' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <template #footer>
+      <Button label="Tutup" text @click="aiDialogVisible = false" />
+    </template>
+  </Dialog>
 </template>
 
 <style scoped>
-.lbl { font-size: 0.8rem; display: block; margin-bottom: 2px; }
+.lbl {
+  font-size: 0.8rem;
+  display: block;
+  margin-bottom: 2px;
+}
+
 .konteks-ref {
   font-size: 0.82rem;
   line-height: 1.5;
@@ -737,17 +989,20 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
   border-radius: 6px;
   padding: 8px 10px;
 }
+
 .kamus-option-item {
   display: flex;
   flex-direction: column;
   gap: 3px;
   padding: 4px 0;
 }
+
 .kamus-option-header {
   display: flex;
   align-items: center;
   gap: 6px;
 }
+
 .code-badge-sm {
   font-family: monospace;
   font-size: 0.72rem;
@@ -758,6 +1013,7 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
   border-radius: 4px;
   color: #1e293b;
 }
+
 .category-tag-sm {
   font-size: 0.7rem;
   padding: 1px 6px;
@@ -766,9 +1022,182 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
   color: #3730a3;
   font-weight: 600;
 }
+
 .kamus-option-name {
   font-size: 0.85rem;
   color: #0f172a;
   line-height: 1.35;
+}
+
+/* AI Assist Modal Styles */
+.ai-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ai-banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+}
+
+.ai-banner-icon {
+  margin-top: 2px;
+}
+
+.ai-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.quick-chip-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.quick-chip-btn {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.quick-chip-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+.ai-results-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.ai-card {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.15s ease;
+}
+
+.ai-card:hover {
+  border-color: #c7d2fe;
+}
+
+.ai-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-index-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #f3e8ff;
+  color: #7e22ce;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.source-badge-sm {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 600;
+}
+
+.ai-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-risk-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.ai-risk-desc {
+  font-size: 0.8rem;
+  color: #475569;
+  line-height: 1.4;
+  white-space: pre-line;
+  background: #f8fafc;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 3px solid #818cf8;
+}
+
+.ai-kamus-match-box {
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.ai-grid-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  font-size: 0.8rem;
+  color: #334155;
+  background: #f8fafc;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
+.ai-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ai-detail-lbl {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
 }
 </style>

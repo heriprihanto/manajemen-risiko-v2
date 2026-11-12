@@ -66,6 +66,25 @@ _COLUMN_MIGRATIONS = (
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_tr_realisasi_rtp_cee_id ON tr_realisasi_rtp (rtp_cee_id)",
     "ALTER TABLE tr_rtp_bukti ALTER COLUMN risiko_id DROP NOT NULL",
     "ALTER TABLE tr_rtp_bukti ADD COLUMN IF NOT EXISTS rtp_cee_id INTEGER REFERENCES tr_rtp_cee(id)",
+    """CREATE TABLE IF NOT EXISTS mr_upr (
+        id SERIAL PRIMARY KEY,
+        opd_id INTEGER REFERENCES ta_opd(id_sub_pd),
+        nip VARCHAR NOT NULL,
+        nama VARCHAR NOT NULL,
+        jabatan VARCHAR NOT NULL,
+        eselon VARCHAR NOT NULL DEFAULT 'Non-Eselon',
+        status VARCHAR DEFAULT 'Aktif',
+        keterangan TEXT,
+        created_at TIMESTAMP,
+        updated_at TIMESTAMP
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_mr_upr_nip ON mr_upr (nip)",
+    "CREATE INDEX IF NOT EXISTS ix_mr_upr_nama ON mr_upr (nama)",
+    "CREATE INDEX IF NOT EXISTS ix_mr_upr_opd_id ON mr_upr (opd_id)",
+    "ALTER TABLE mr_upr ADD COLUMN IF NOT EXISTS tingkat_organisasi varchar DEFAULT 'UPR tingkat unit Eselon II'",
+    "ALTER TABLE mr_upr ADD COLUMN IF NOT EXISTS jabatan_upr varchar DEFAULT 'Anggota'",
+    "CREATE INDEX IF NOT EXISTS ix_mr_upr_tingkat_organisasi ON mr_upr (tingkat_organisasi)",
+    "CREATE INDEX IF NOT EXISTS ix_mr_upr_jabatan_upr ON mr_upr (jabatan_upr)",
 )
 
 

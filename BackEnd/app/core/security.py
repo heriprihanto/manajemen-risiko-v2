@@ -32,8 +32,15 @@ def decode_access_token(token: str) -> dict:
         raise HTTPException(401, "Token tidak valid") from exc
 
 
-def current_user(authorization: str = Header(default="")) -> dict:
+def current_user(request: Request, authorization: str = Header(default="")) -> dict:
     """Dependency FastAPI: verifikasi Bearer token, kembalikan klaim pengguna."""
+    if settings.SSO_ENABLED:
+        from app.core.sso import check_origin, session_request
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            check_origin(request)
+        if not hasattr(request.state, 'sso_user'):
+            request.state.sso_user = session_request(request)
+        return request.state.sso_user
     if not authorization.lower().startswith("bearer "):
         raise HTTPException(401, "Authorization Bearer token diperlukan")
     token = authorization.split(" ", 1)[1].strip()

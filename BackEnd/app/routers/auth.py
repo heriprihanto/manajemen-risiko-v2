@@ -1,5 +1,5 @@
 """Autentikasi pengguna internal (Admin / OPD) berbasis tabel sso_users + JWT."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlmodel import Session
@@ -7,6 +7,8 @@ from sqlmodel import Session
 from app.core import captcha
 from app.core.security import UserDep, create_access_token
 from app.db import get_session
+from app.core.config import settings
+from app.core.sso import check_origin, session_request
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -43,11 +45,15 @@ def _user_payload(row) -> dict:
 @router.get("/captcha")
 def get_captcha():
     """Terbitkan captcha baru (id + gambar SVG). Publik."""
+    if settings.SSO_ENABLED:
+        raise HTTPException(404, "Login dikelola e-Monev")
     return captcha.generate()
 
 
 @router.post("/login")
 def login(body: LoginRequest, session: Session = Depends(get_session)):
+    if settings.SSO_ENABLED:
+        raise HTTPException(403, "Gunakan login e-Monev")
     # Verifikasi captcha lebih dulu (sekali pakai) sebelum cek kredensial.
     if not captcha.verify(body.captcha_id, body.captcha_answer):
         raise HTTPException(400, "Kode captcha salah atau kedaluwarsa")
@@ -69,5 +75,20 @@ def login(body: LoginRequest, session: Session = Depends(get_session)):
 
 
 @router.get("/me")
-def me(user: dict = UserDep):
+def me(response: Response, user: dict = UserDep):
+    response.headers["Cache-Control"] = "no-store"
     return user
+
+
+@router.get("/config")
+def auth_config():
+    return {"sso_enabled": settings.SSO_ENABLED, "login_url": settings.SSO_LOGIN_URL}
+
+
+@router.post("/logout", status_code=204)
+def logout(request: Request, response: Response):
+    if settings.SSO_ENABLED:
+        check_origin(request)
+        session_request(request, "DELETE")
+        response.delete_cookie(settings.SSO_COOKIE_NAME, path="/", secure=True, httponly=True, samesite="lax")
+    response.headers["Cache-Control"] = "no-store"

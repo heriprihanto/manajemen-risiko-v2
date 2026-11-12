@@ -25,6 +25,7 @@ from app.models.pengaturan import SETTINGS_ID, Pengaturan
 from app.models.risiko import AnalisisRisiko, RealisasiRtp, Risiko, RtpRisiko, TreatedRisk
 from app.models import tata_kelola  # noqa: F401 — daftar tabel tambahan saat startup
 from app.models.selera import SeleraRisiko
+from app.models.upr import Upr
 
 __all__ = [
     "Opd",
@@ -53,5 +54,6 @@ __all__ = [
     "MonitoringRiskEvent",
     "Pengaturan",
     "SETTINGS_ID",
+    "Upr",
 ]
 
