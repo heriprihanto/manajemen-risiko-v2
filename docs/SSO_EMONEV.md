@@ -80,6 +80,35 @@ SSO cookie memerlukan HTTPS, termasuk ketika diuji melalui browser lokal.
 
 ## Alur dan batasan
 
+### Login MR masih tampil setelah SSO diaktifkan
+
+Periksa endpoint konfigurasi pada path deployment, misalnya
+`https://monevrkpd.tegalkota.go.id/manajemen-risiko-v2/api/auth/config`.
+Jika `sso_enabled` masih `false`, pastikan yang diubah adalah `BackEnd/.env`
+milik proses backend yang dituju reverse proxy, lalu restart proses tersebut.
+Environment proses dapat menimpa nilai `.env`.
+
+Jika respons sudah `true` tetapi form login MR masih muncul, perbarui frontend.
+Frontend lama belum membaca konfigurasi SSO walaupun backend sudah aktif.
+Build dari source terbaru dengan path yang sesuai:
+
+```bash
+cd FrontEnd
+npm ci
+VITE_APP_BASE=/manajemen-risiko-v2/ npm run build
+```
+
+Deploy seluruh isi `FrontEnd/dist/` ke direktori frontend yang dilayani pada
+`/manajemen-risiko-v2/`, termasuk `index.html` dan `assets/`. Pastikan tidak ada
+`VITE_API_BASE` lama yang mengarah ke backend aplikasi lain. Muat ulang browser
+dengan hard refresh. Di Network browser harus ada request ke
+`/manajemen-risiko-v2/api/auth/config`, kemudian `/auth/me`.
+
+Reverse proxy harus meneruskan `/manajemen-risiko-v2/api/` ke backend MR yang
+SSO-nya aktif. e-Monev juga harus mengizinkan path `/manajemen-risiko-v2/` sebagai
+tujuan `return_to`; bila hanya mengizinkan `/manajemen-risiko/`, sesuaikan daftar
+path yang diizinkan pada e-Monev sebelum menguji kembali login bersama.
+
 - MR memanggil `/auth/me`, lalu memakai pengguna yang dikembalikan server.
   Jika belum login, pengunjung diarahkan ke e-Monev dengan parameter `return_to`.
   e-Monev hanya menerima tujuan pada origin yang sama dan path `/manajemen-risiko/`.
