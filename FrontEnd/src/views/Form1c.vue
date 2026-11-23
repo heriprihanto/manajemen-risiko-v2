@@ -1,14 +1,17 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
+import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
 import api from '@/api'
 import { useContextStore } from '@/stores/context'
+import AppLoader from '@/components/AppLoader.vue'
 
 const ctx = useContextStore()
 const toast = useToast()
 const rows = ref([])
+const loading = ref(false)
 
 const simpulanOptions = [
   { label: 'Memadai', value: 'Memadai' },
@@ -19,10 +22,17 @@ function pill(v) {
   return v === 'Memadai' ? 'pill-ok' : v ? 'pill-bad' : ''
 }
 async function load() {
-  const { data } = await api.get('/cee/form1c', {
-    params: { opd_id: ctx.opdId, tahun: ctx.tahun },
-  })
-  rows.value = data
+  loading.value = true
+  try {
+    const { data } = await api.get('/cee/form1c', {
+      params: { opd_id: ctx.opdId, tahun: ctx.tahun },
+    })
+    rows.value = data
+  } catch (e) {
+    console.error('Gagal memuat Form 1.c:', e)
+  } finally {
+    loading.value = false
+  }
 }
 async function saveSimpulan(row) {
   await api.post('/cee/form1c/simpulan', {
@@ -76,15 +86,54 @@ async function resetPenjelasan(row) {
   }
 }
 
+watch([() => ctx.opdId, () => ctx.tahun], load)
 onMounted(load)
 </script>
 
 <template>
-  <p class="muted" style="margin-top: 0">
-    Simpulan gabungan: hasil survei persepsi (Form 1.a) + hasil reviu dokumen (Form 1.b). Simpulan akhir
-    <strong>Kurang Memadai</strong> bila salah satunya Kurang Memadai.
-  </p>
-  <div class="page-card" style="padding: 0">
+  <div class="form1c-page">
+    <!-- Header Section (Style Realisasi RTP) -->
+    <div class="page-header">
+      <div class="header-left">
+        <div class="header-icon-box">
+          <i class="pi pi-check-square"></i>
+        </div>
+        <div>
+          <h1 class="page-title">Simpulan CEE</h1>
+          <p class="page-desc">
+            Simpulan gabungan hasil survei persepsi (Form 1.a) dan reviu dokumen (Form 1.b) atas Lingkungan Pengendalian (Form 1.c)
+          </p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="ctx-chip" title="Konteks Penilaian Aktif">
+          <i class="pi pi-building"></i>
+          <span>{{ ctx.opd?.nama_pd || 'Semua OPD' }}</span>
+          <span class="chip-dot">•</span>
+          <span>Tahun {{ ctx.tahun }}</span>
+        </div>
+        <Button
+          label="Segarkan"
+          icon="pi pi-refresh"
+          severity="secondary"
+          variant="outlined"
+          :loading="loading"
+          @click="load"
+        />
+      </div>
+    </div>
+
+    <div class="info-banner">
+      <i class="pi pi-info-circle info-icon"></i>
+      <span>
+        Simpulan gabungan: hasil survei persepsi (Form 1.a) + hasil reviu dokumen (Form 1.b). Simpulan akhir
+        <strong>Kurang Memadai</strong> bila salah satunya Kurang Memadai.
+      </span>
+    </div>
+
+    <AppLoader v-if="loading && !rows.length" label="Memuat simpulan CEE…" />
+
+    <div v-else class="page-card" style="padding: 0">
     <table class="grid-table">
       <thead>
         <tr>
@@ -136,10 +185,104 @@ onMounted(load)
         </tr>
       </tbody>
     </table>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.form1c-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Page Header (Style Realisasi RTP) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.page-desc {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ctx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.chip-dot {
+  color: #94a3b8;
+}
+
+.info-banner {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 4px solid #16a34a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: #166534;
+}
+
+.info-icon {
+  font-size: 1.1rem;
+  color: #16a34a;
+  flex-shrink: 0;
+}
+
 .grid-table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
 .grid-table th, .grid-table td { border: 1px solid #e2e8f0; padding: 8px 10px; }
 .grid-table thead th { background: #f8fafc; font-weight: 600; color: #1e293b; border: 1px solid #e2e8f0; }

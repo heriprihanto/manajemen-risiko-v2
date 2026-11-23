@@ -1,15 +1,17 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import Select from 'primevue/select'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
 import api from '@/api'
 import { useContextStore } from '@/stores/context'
+import AppLoader from '@/components/AppLoader.vue'
 
 const ctx = useContextStore()
 const toast = useToast()
 const rows = ref([])
+const loading = ref(false)
 const draft = ref({}) // item_id -> teks uraian baru
 
 const nilaiOptions = [
@@ -18,10 +20,17 @@ const nilaiOptions = [
 ]
 
 async function load() {
-  const { data } = await api.get('/cee/form1b', {
-    params: { opd_id: ctx.opdId, tahun: ctx.tahun },
-  })
-  rows.value = data
+  loading.value = true
+  try {
+    const { data } = await api.get('/cee/form1b', {
+      params: { opd_id: ctx.opdId, tahun: ctx.tahun },
+    })
+    rows.value = data
+  } catch (e) {
+    console.error('Gagal memuat Form 1.b:', e)
+  } finally {
+    loading.value = false
+  }
 }
 
 async function saveNilai(row) {
@@ -61,11 +70,46 @@ async function deleteKelemahan(k) {
   await load()
 }
 
+watch([() => ctx.opdId, () => ctx.tahun], load)
 onMounted(load)
 </script>
 
 <template>
-  <div class="page-card" style="padding: 0">
+  <div class="form1b-page">
+    <!-- Header Section (Style Realisasi RTP) -->
+    <div class="page-header">
+      <div class="header-left">
+        <div class="header-icon-box">
+          <i class="pi pi-file-edit"></i>
+        </div>
+        <div>
+          <h1 class="page-title">Reviu Dokumen CEE</h1>
+          <p class="page-desc">
+            Penilaian kecukupan bukti dukung dokumen dan pencatatan uraian kelemahan Lingkungan Pengendalian (Form 1.b)
+          </p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="ctx-chip" title="Konteks Penilaian Aktif">
+          <i class="pi pi-building"></i>
+          <span>{{ ctx.opd?.nama_pd || 'Semua OPD' }}</span>
+          <span class="chip-dot">•</span>
+          <span>Tahun {{ ctx.tahun }}</span>
+        </div>
+        <Button
+          label="Segarkan"
+          icon="pi pi-refresh"
+          severity="secondary"
+          variant="outlined"
+          :loading="loading"
+          @click="load"
+        />
+      </div>
+    </div>
+
+    <AppLoader v-if="loading && !rows.length" label="Memuat data reviu dokumen…" />
+
+    <div v-else class="page-card" style="padding: 0">
     <table class="grid-table">
       <thead>
         <tr>
@@ -141,10 +185,85 @@ onMounted(load)
         </tr>
       </tbody>
     </table>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.form1b-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Page Header (Style Realisasi RTP) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.page-desc {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ctx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.chip-dot {
+  color: #94a3b8;
+}
+
 .grid-table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
 .grid-table th, .grid-table td { border: 1px solid #e2e8f0; padding: 8px 10px; vertical-align: top; }
 .grid-table thead th { background: #f8fafc; font-weight: 600; color: #1e293b; border: 1px solid #e2e8f0; }

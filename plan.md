@@ -557,3 +557,7 @@ kolom :
 No | Risiko yang Terindentifikasi |	Rencana Tindak Pengendalian (RTP) |	Rencana Pelaksanaan RTP	 | Realisasi Pelaksanaan RTP |	Bukti Dokumen | 	Keterjadian
 
 
+Revisi Halaman :
+- Kelola Kuesioner CEE
+- Pengaturan Aplikasi
+header judul  seperti pada halaman Realisasi Rencana Tindak Pengendalian (RTP) 

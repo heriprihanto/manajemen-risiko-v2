@@ -675,31 +675,31 @@ onMounted(() => {
 }
 
 .header-icon-box {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
   flex-shrink: 0;
 }
 
 .page-title {
-  margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: var(--text, #1e293b);
-  letter-spacing: -0.01em;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
 }
 
 .page-desc {
-  margin: 3px 0 0;
-  font-size: 0.84rem;
-  color: var(--text-muted, #64748b);
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
 }
 
 .header-actions {

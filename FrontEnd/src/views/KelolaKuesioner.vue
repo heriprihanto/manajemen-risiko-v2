@@ -100,10 +100,36 @@ onMounted(load)
 </script>
 
 <template>
-  <p class="muted" style="margin-top: 0">
-    Kelola daftar pertanyaan kuesioner CEE. Hanya pertanyaan yang <strong>dipublish</strong>
-    (aktif) yang muncul di Survei Publik dan Form 1.a.
-  </p>
+  <div class="kelola-kuesioner-page">
+    <!-- Header Section (Style Realisasi RTP) -->
+    <div class="page-header">
+      <div class="header-left">
+        <div class="header-icon-box">
+          <i class="pi pi-list-check"></i>
+        </div>
+        <div>
+          <h1 class="page-title">Kelola Kuesioner CEE</h1>
+          <p class="page-desc">
+            Kelola daftar pertanyaan kuesioner Lingkungan Pengendalian Intern (CEE) per sub-unsur serta status publikasinya
+          </p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <Button
+          label="Segarkan"
+          icon="pi pi-refresh"
+          severity="secondary"
+          variant="outlined"
+          :loading="loading"
+          @click="load"
+        />
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top: 0">
+      Kelola daftar pertanyaan kuesioner CEE. Hanya pertanyaan yang <strong>dipublish</strong>
+      (aktif) yang muncul di Survei Publik dan Form 1.a.
+    </p>
 
   <div class="stat-grid" style="margin-bottom: 18px">
     <div class="stat"><div class="v">{{ totalSemua }}</div><div class="l">Total Pertanyaan</div></div>
@@ -164,9 +190,66 @@ onMounted(load)
       <Button label="Simpan" icon="pi pi-check" @click="save" />
     </template>
   </Dialog>
+  </div>
 </template>
 
 <style scoped>
+.kelola-kuesioner-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Page Header (Style Realisasi RTP) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.page-desc {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .kat-head {
   display: flex;
   align-items: center;

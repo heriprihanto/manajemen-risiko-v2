@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import SelectButton from 'primevue/selectbutton'
@@ -81,15 +81,43 @@ async function load() {
   loading.value = false
 }
 
+watch([() => ctx.opdId, () => ctx.tahun], load)
 onMounted(load)
 </script>
 
 <template>
-  <div class="toolbar no-print">
-    <span class="muted">{{ ctx.opd?.nama_pd }} — {{ ctx.tahun }}</span>
-    <div class="spacer" />
-    <SelectButton v-model="sumber" :options="sumberOptions" optionLabel="label" optionValue="value" />
-  </div>
+  <div class="survei-hasil-page">
+    <!-- Header Section (Style Realisasi RTP) -->
+    <div class="page-header">
+      <div class="header-left">
+        <div class="header-icon-box">
+          <i class="pi pi-users"></i>
+        </div>
+        <div>
+          <h1 class="page-title">Rincian Hasil Survei CEE</h1>
+          <p class="page-desc">
+            Rincian jawaban setiap responden terhadap pertanyaan survei persepsi Lingkungan Pengendalian Intern
+          </p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="ctx-chip" title="Konteks Penilaian Aktif">
+          <i class="pi pi-building"></i>
+          <span>{{ ctx.opd?.nama_pd || 'Semua OPD' }}</span>
+          <span class="chip-dot">•</span>
+          <span>Tahun {{ ctx.tahun }}</span>
+        </div>
+        <SelectButton v-model="sumber" :options="sumberOptions" optionLabel="label" optionValue="value" />
+        <Button
+          label="Segarkan"
+          icon="pi pi-refresh"
+          severity="secondary"
+          variant="outlined"
+          :loading="loading"
+          @click="load"
+        />
+      </div>
+    </div>
 
   <AppLoader v-if="loading" label="Memuat rincian hasil survei…" />
 
@@ -196,9 +224,84 @@ onMounted(load)
       </DataTable>
     </div>
   </template>
+  </div>
 </template>
 
 <style scoped>
+.survei-hasil-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Page Header (Style Realisasi RTP) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.page-desc {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ctx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.chip-dot {
+  color: #94a3b8;
+}
+
 .detail { padding: 8px 14px 14px; background: #f8fafc; }
 .detail-kat { margin-bottom: 12px; }
 .detail-head { font-weight: 600; color: #0f172a; margin: 8px 0 4px; }
