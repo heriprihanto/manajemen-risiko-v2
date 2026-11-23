@@ -75,14 +75,16 @@ const navGroups = [
     label: 'Beranda',
     items: [
       ['dashboard', 'Dashboard', 'pi-home'],
-      ['tata-kelola', 'Tata Kelola Risiko', 'pi-sitemap'],
-      ['laporan', 'Cetak Laporan', 'pi-print'],
-      ['generate-rtp', 'Generate Dokumen RTP', 'pi-file-word'],
+      //['tata-kelola', 'Tata Kelola Risiko', 'pi-sitemap'],
+      
+      
     ],
   },
   {
-    label: 'Laporan Rekapitulasi',
+    label: 'Laporan',
     items: [
+      ['laporan', 'Cetak Laporan', 'pi-print'],
+      ['generate-rtp', 'Generate Dokumen RTP', 'pi-file-word'],
       ['rekap-kuesioner', 'Rekapitulasi Kuesioner', 'pi-chart-pie'],
       ['rekap-konteks', 'Rekapitulasi Konteks', 'pi-sitemap'],
       ['rekap-identifikasi', 'Rekapitulasi Kategori Risiko', 'pi-tags'],
@@ -112,18 +114,20 @@ const navGroups = [
       ['identifikasi-risiko', 'Identifikasi Risiko', 'pi-flag'],
       ['form4', 'Analisis Risiko', 'pi-chart-bar'],
       ['matriks', 'Matriks Risiko', 'pi-th-large'],
-      ['form5', 'Risiko Prioritas', 'pi-star'],
-      ['form7', 'Respon Risiko (RTP)', 'pi-shield'],
-      ['realisasi-rtp', 'Realisasi RTP', 'pi-check-circle'],
-      ['treated-risk', 'Treated Risk', 'pi-sliders-v'],
+      //['form5', 'Risiko Prioritas', 'pi-star'],
+      ['form7', 'Respon Risiko (RTP)', 'pi-shield']      
     ],
   },
 
   {
-    label: 'Pemantauan',
+    label: 'Monev RTP',
     items: [
-      ['form10', 'Monitoring Event', 'pi-history'],
+      ['realisasi-rtp', 'Realisasi RTP', 'pi-check-circle'],
+      ['laporan-monev-rtp', 'Laporan Monev RTP', 'pi-file-check'],
+      ['realisasi-infokom', 'Realisasi Infokom', 'pi-comments'],
+      ['form10', 'Kejadian Risiko', 'pi-history'],
       ['approval-kejadian', 'Approval Kejadian', 'pi-check-circle'],
+      ['treated-risk', 'Treated Risk', 'pi-sliders-v']
     ],
   },
   {
@@ -178,6 +182,9 @@ const laporanKey = {
   form2a: 'f2a', form2b: 'f2b', form2c: 'f2c',
   form3a: 'f3a', form3b: 'f3b', form3c: 'f3c', form4: 'f4', form5: 'f5', form7: 'f7',
   form8: 'f8', form9: 'f9', form10: 'f10',
+  'realisasi-rtp': 'monev_rtp',
+  'laporan-monev-rtp': 'monev_rtp',
+  'realisasi-infokom': 'f8',
 }
 // Tampilkan tombol Cetak di setiap modul kecuali halaman laporan itu sendiri.
 const showCetak = computed(() => route.name !== 'laporan')

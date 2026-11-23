@@ -139,7 +139,7 @@ watch([() => ctx.opdId, () => ctx.tahun], () => {
 
 <template>
   <div class="page-header" style="margin-bottom: 1rem">
-    <h2 style="margin: 0 0 4px 0">Form 9 — Rencana Pemantauan PI</h2>
+    <h2 style="margin: 0 0 4px 0">Rencana Pemantauan PI</h2>
     <p class="muted" style="margin: 0">
       Rencana dan realisasi pemantauan atas kegiatan pengendalian intern yang dibangun dari Respon Risiko (RTP).
     </p>

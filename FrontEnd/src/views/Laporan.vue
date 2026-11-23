@@ -20,6 +20,7 @@ import Form7 from '@/components/laporan/Form7.vue'
 import Form8 from '@/components/laporan/Form8.vue'
 import Form9 from '@/components/laporan/Form9.vue'
 import Form10 from '@/components/laporan/Form10.vue'
+import MonevRtp from '@/components/laporan/MonevRtp.vue'
 
 const ctx = useContextStore()
 const route = useRoute()
@@ -39,10 +40,11 @@ const sections = [
   { key: 'f3c', form: 'Form 3.c', label: 'Identifikasi Risiko Operasional OPD' },
   { key: 'f4', form: 'Form 4', label: 'Analisis Risiko' },
   { key: 'f5', form: 'Form 5', label: 'Daftar Risiko Prioritas' },
-  { key: 'f7', form: 'Form 10 Perwal / Form 7 aplikasi', label: 'RTP atas Risiko' },
-  { key: 'f8', form: 'Form 11 Perwal / Form 8 aplikasi', label: 'Informasi & Komunikasi' },
-  { key: 'f9', form: 'Form 12 Perwal / Form 9 aplikasi', label: 'Rencana Pemantauan PI' },
-  { key: 'f10', form: 'Form 10', label: 'Monitoring Risk Event & RTP' },
+  { key: 'f7', form: 'Form 7', label: 'RTP atas Risiko' },
+  { key: 'f8', form: 'Form 8', label: 'Informasi & Komunikasi' },
+  { key: 'f9', form: 'Form 9', label: 'Rencana Pemantauan Pengendalian Internal' },
+  { key: 'f10', form: 'Form 10', label: 'Monitoring Risk Event' },
+  { key: 'monev_rtp', form: 'Monev RTP', label: 'Monitoring & Evaluasi Rencana Tindak Pengendalian' },
 ]
 // Bila dibuka dari tombol "Cetak" sebuah modul (?form=<key>), batasi laporan
 // ke satu bagian saja; jika tidak, tampilkan semua bagian.
@@ -57,12 +59,12 @@ async function load() {
   loading.value = true
   const p = { opd_id: ctx.opdId, tahun: ctx.tahun }
   const g = (url, params = p) => api.get(url, { params }).then((r) => r.data).catch(() => null)
-  const [f1a, f1b, f1c, f6, f2a, f2b, f2c, f4, matriks, f5, f7, f8, f9, f10,
+  const [f1a, f1b, f1c, f6, f2a, f2b, f2c, f4, matriks, f5, f7, f8, f9, f10, monev_rtp,
          opdctx, rtTujuan, rtSasaran, rtIku, rtProgram] = await Promise.all([
     g('/cee/form1a'), g('/cee/form1b'), g('/cee/form1c'), g('/cee/rtp-cee'),
     g('/konteks/pemda', { tahun: ctx.tahun }), g('/konteks/strategis-opd'), g('/konteks/operasional-opd'),
     g('/risiko/form4'), g('/risiko/matriks'), g('/risiko/form5'), g('/risiko/rtp'),
-    g('/monitoring/infokom'), g('/monitoring/pi'), g('/monitoring/risk-event'),
+    g('/monitoring/infokom'), g('/monitoring/pi'), g('/monitoring/risk-event'), g('/risiko/realisasi'),
     g(`/master/opd/${ctx.opdId}/print-context`),
     // Blok hijau Form 2.b = seluruh data renstra OPD (bukan hanya yang dientri).
     g('/master/renstra/tujuan'), g('/master/renstra/sasaran'),
@@ -70,7 +72,7 @@ async function load() {
   ])
   // Hierarki renja Form 2.c (program/kegiatan/subkegiatan + indikator) untuk cetak.
   const renjaC = await g('/master/renja/subkegiatan')
-  d.value = { f1a, f1b, f1c, f6, f2a, f2b, f2c, f4, matriks, f5, f7, f8, f9, f10,
+  d.value = { f1a, f1b, f1c, f6, f2a, f2b, f2c, f4, matriks, f5, f7, f8, f9, f10, monev_rtp,
     opdctx, rtTujuan, rtSasaran, rtIku, rtProgram, renjaC }
   loading.value = false
 }
@@ -137,7 +139,7 @@ onMounted(async () => {
       optionLabel="label"
       optionValue="key"
       display="chip"
-      placeholder="Pilih form"
+      placeholder="Pilih Laporan"
       style="max-width: 640px"
     >
       <template #option="{ option }">{{ option.form }} — {{ option.label }}</template>
@@ -204,5 +206,6 @@ onMounted(async () => {
     <Form8 v-if="isSel('f8')" :data="d.f8" :opd-name="opdName" :tahun="ctx.tahun" />
     <Form9 v-if="isSel('f9')" :data="d.f9" :opd-name="opdName" :tahun="ctx.tahun" />
     <Form10 v-if="isSel('f10') && d.f10" :data="d.f10" :opd-name="opdName" :tahun="ctx.tahun" />
+    <MonevRtp v-if="isSel('monev_rtp') && d.monev_rtp" :data="d.monev_rtp" :opd-name="opdName" :tahun="ctx.tahun" />
   </div>
 </template>

@@ -2,6 +2,7 @@
 Matriks Risiko, Form 7 (RTP risiko)."""
 import base64
 import binascii
+import json
 import re
 from urllib.parse import quote
 from datetime import date, datetime
@@ -45,9 +46,9 @@ from app.models.tata_kelola import PenilaianRiwayat, TindakanRisiko, ReviuRisiko
 router = APIRouter(prefix="/risiko", tags=["risiko"])
 
 JENIS_LABEL = {
-    "strategis_pemda": "Risiko Strategis Pemda (Form 3.a)",
-    "strategis_opd": "Risiko Strategis OPD (Form 3.b)",
-    "operasional_opd": "Risiko Operasional OPD (Form 3.c)",
+    "strategis_pemda": "Risiko Strategis Pemda ",
+    "strategis_opd": "Risiko Strategis OPD",
+    "operasional_opd": "Risiko Operasional OPD",
 }
 
 
@@ -606,6 +607,14 @@ def list_treated(opd_id: int, tahun: int, session: Session = Depends(get_session
     ).all()
     treated_map = {tr.risiko_id: tr for tr in saved_treated}
 
+    saved_events = session.exec(
+        select(MonitoringRiskEvent).join(Risiko, MonitoringRiskEvent.risiko_id == Risiko.id)
+        .where(Risiko.opd_id == opd_id, Risiko.tahun == tahun)
+    ).all()
+    events_map: dict[int, list[MonitoringRiskEvent]] = {}
+    for ev in saved_events:
+        events_map.setdefault(ev.risiko_id, []).append(ev)
+
     saved_realisasi = session.exec(
         select(RealisasiRtp).join(Risiko, RealisasiRtp.risiko_id == Risiko.id)
         .where(Risiko.opd_id == opd_id, Risiko.tahun == tahun)
@@ -650,6 +659,8 @@ def list_treated(opd_id: int, tahun: int, session: Session = Depends(get_session
                 "id": rel.id if rel else None,
                 "status_realisasi": rel.status_realisasi if rel else "belum",
                 "tanggal_realisasi": rel.tanggal_realisasi.isoformat() if rel and rel.tanggal_realisasi else None,
+                "tanggal_mulai": rel.tanggal_mulai.isoformat() if rel and rel.tanggal_mulai else (rel.tanggal_realisasi.isoformat() if rel and rel.tanggal_realisasi else None),
+                "tanggal_selesai": rel.tanggal_selesai.isoformat() if rel and rel.tanggal_selesai else None,
                 "uraian_hasil": rel.uraian_hasil if rel else None,
                 "hambatan": rel.hambatan if rel else None,
                 "bukti_berkas_id": rel.bukti_berkas_id if rel else None,
@@ -781,6 +792,14 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
     ).all()
     treated_map = {tr.risiko_id: tr for tr in saved_treated}
 
+    saved_events = session.exec(
+        select(MonitoringRiskEvent).join(Risiko, MonitoringRiskEvent.risiko_id == Risiko.id)
+        .where(Risiko.opd_id == opd_id, Risiko.tahun == tahun)
+    ).all()
+    events_map: dict[int, list[MonitoringRiskEvent]] = {}
+    for ev in saved_events:
+        events_map.setdefault(ev.risiko_id, []).append(ev)
+
     items = []
     total_rtp = 0
     selesai_cnt = 0
@@ -817,6 +836,8 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
                 "id": rel.id if rel else None,
                 "status_realisasi": status_realisasi,
                 "tanggal_realisasi": rel.tanggal_realisasi.isoformat() if rel and rel.tanggal_realisasi else None,
+                "tanggal_mulai": rel.tanggal_mulai.isoformat() if rel and rel.tanggal_mulai else (rel.tanggal_realisasi.isoformat() if rel and rel.tanggal_realisasi else None),
+                "tanggal_selesai": rel.tanggal_selesai.isoformat() if rel and rel.tanggal_selesai else None,
                 "uraian_hasil": rel.uraian_hasil if rel else None,
                 "hambatan": rel.hambatan if rel else None,
                 "bukti_berkas_id": rel.bukti_berkas_id if rel else None,
@@ -828,6 +849,8 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
                 "id": None,
                 "status_realisasi": "belum",
                 "tanggal_realisasi": None,
+                "tanggal_mulai": None,
+                "tanggal_selesai": None,
                 "uraian_hasil": None,
                 "hambatan": None,
                 "bukti_berkas_id": None,
@@ -843,6 +866,7 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
                 "skala_treated": tr.skala_treated if tr else None,
                 "level_treated": an.level_risiko(tr.skala_treated) if tr and tr.skala_treated else None,
             } if tr else None,
+            "events": [e.model_dump() for e in events_map.get(r["id"], [])],
         })
 
     # 2. RTP atas CEE (Form 6)
@@ -862,7 +886,15 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
         rel = cee_rel_map.get(c.id)
 
         tgl_rel = rel.tanggal_realisasi.isoformat() if rel and rel.tanggal_realisasi else None
+        tgl_mulai = rel.tanggal_mulai.isoformat() if rel and rel.tanggal_mulai else tgl_rel
+        tgl_selesai = rel.tanggal_selesai.isoformat() if rel and rel.tanggal_selesai else None
         if not tgl_rel and c.realisasi_waktu and re.match(r"^\d{4}-\d{2}-\d{2}$", str(c.realisasi_waktu).strip()):
+            tgl_rel = str(c.realisasi_waktu).strip()
+            tgl_mulai = tgl_rel
+        elif not tgl_rel and c.realisasi_waktu and " s.d. " in str(c.realisasi_waktu):
+            parts = str(c.realisasi_waktu).split(" s.d. ")
+            tgl_mulai = parts[0].strip()
+            tgl_selesai = parts[1].strip()
             tgl_rel = str(c.realisasi_waktu).strip()
 
         status_realisasi = rel.status_realisasi if rel and rel.status_realisasi else ("selesai" if tgl_rel else "belum")
@@ -903,6 +935,8 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
                 "id": rel.id if rel else None,
                 "status_realisasi": status_realisasi,
                 "tanggal_realisasi": tgl_rel,
+                "tanggal_mulai": tgl_mulai,
+                "tanggal_selesai": tgl_selesai,
                 "uraian_hasil": rel.uraian_hasil if rel else None,
                 "hambatan": rel.hambatan if rel else None,
                 "bukti_berkas_id": rel.bukti_berkas_id if rel else None,
@@ -956,17 +990,71 @@ def save_realisasi(
     if status_realisasi not in {"belum", "proses", "selesai"}:
         raise HTTPException(400, "status_realisasi harus 'belum', 'proses', atau 'selesai'")
 
-    tgl_str = payload.get("tanggal_realisasi")
-    tanggal_realisasi = None
-    if tgl_str:
+    def parse_iso_date(val: Any) -> date | None:
+        if not val:
+            return None
+        if isinstance(val, date):
+            return val
+        s = str(val).strip().split("T")[0]
+        if not s:
+            return None
         try:
-            tanggal_realisasi = date.fromisoformat(str(tgl_str).split("T")[0])
+            return date.fromisoformat(s)
         except ValueError:
-            raise HTTPException(422, "Format tanggal realisasi tidak valid (gunakan YYYY-MM-DD)")
+            raise HTTPException(422, f"Format tanggal tidak valid '{val}' (gunakan YYYY-MM-DD)")
+
+    tgl_mulai_str = payload.get("tanggal_mulai")
+    tgl_selesai_str = payload.get("tanggal_selesai")
+    tgl_rel_str = payload.get("tanggal_realisasi")
+
+    tanggal_mulai = parse_iso_date(tgl_mulai_str)
+    tanggal_selesai = parse_iso_date(tgl_selesai_str)
+
+    if not tanggal_mulai and tgl_rel_str:
+        if " s.d. " in str(tgl_rel_str):
+            p1, p2 = str(tgl_rel_str).split(" s.d. ", 1)
+            tanggal_mulai = parse_iso_date(p1)
+            if not tanggal_selesai:
+                tanggal_selesai = parse_iso_date(p2)
+        else:
+            tanggal_mulai = parse_iso_date(tgl_rel_str)
+
+    if tanggal_mulai and tanggal_selesai and tanggal_selesai < tanggal_mulai:
+        raise HTTPException(422, "Tanggal selesai tidak boleh sebelum tanggal mulai")
+
+    tanggal_realisasi = tanggal_mulai or tanggal_selesai
+
+    waktu_str: str | None = None
+    if tanggal_mulai and tanggal_selesai and tanggal_mulai != tanggal_selesai:
+        waktu_str = f"{tanggal_mulai.isoformat()} s.d. {tanggal_selesai.isoformat()}"
+    elif tanggal_mulai:
+        waktu_str = tanggal_mulai.isoformat()
+    elif tanggal_selesai:
+        waktu_str = tanggal_selesai.isoformat()
 
     uraian_hasil = (payload.get("uraian_hasil") or "").strip() or None
     hambatan = (payload.get("hambatan") or "").strip() or None
-    bukti_link = (payload.get("bukti_link") or "").strip() or None
+
+    # Dukung bukti_link berupa string tunggal atau JSON list dari bukti [ {nama, link}, ... ]
+    raw_bukti_link = payload.get("bukti_link")
+    bukti_nama_input = (payload.get("bukti_nama") or "").strip() or None
+    bukti_link = None
+    if isinstance(raw_bukti_link, list):
+        items = []
+        for b in raw_bukti_link:
+            if isinstance(b, dict):
+                nm = (b.get("nama") or "").strip()
+                lk = (b.get("link") or "").strip()
+                if lk:
+                    items.append({"nama": nm or "Bukti Dukung", "link": lk})
+            elif isinstance(b, str) and b.strip():
+                items.append({"nama": "Bukti Dukung", "link": b.strip()})
+        if items:
+            bukti_link = json.dumps(items)
+            if not bukti_nama_input and items:
+                bukti_nama_input = items[0]["nama"]
+    elif isinstance(raw_bukti_link, str):
+        bukti_link = raw_bukti_link.strip() or None
 
     bukti_upload = payload.get("bukti_upload")
     bukti_berkas_id = payload.get("bukti_berkas_id")
@@ -1014,9 +1102,13 @@ def save_realisasi(
 
     obj.status_realisasi = status_realisasi
     obj.tanggal_realisasi = tanggal_realisasi
+    obj.tanggal_mulai = tanggal_mulai
+    obj.tanggal_selesai = tanggal_selesai
     obj.uraian_hasil = uraian_hasil
     obj.hambatan = hambatan
     obj.bukti_link = bukti_link
+    if bukti_nama_input:
+        obj.bukti_nama = bukti_nama_input
     if evidence:
         obj.bukti_berkas_id = evidence.id
         obj.bukti_nama = evidence.nama
@@ -1031,21 +1123,21 @@ def save_realisasi(
     if risiko:
         # Sinkronisasi ke RtpRisiko.realisasi_waktu
         rtp_obj = session.exec(select(RtpRisiko).where(RtpRisiko.risiko_id == risiko.id)).first()
-        if rtp_obj and tanggal_realisasi:
-            rtp_obj.realisasi_waktu = tanggal_realisasi.isoformat()
+        if rtp_obj and waktu_str:
+            rtp_obj.realisasi_waktu = waktu_str
             session.add(rtp_obj)
 
         # Sinkronisasi ke MonitoringPi jika ada
         pi = session.exec(select(MonitoringPi).where(MonitoringPi.risiko_id == risiko.id)).first()
-        if pi and tanggal_realisasi:
-            pi.realisasi_waktu = tanggal_realisasi.isoformat()
+        if pi and waktu_str:
+            pi.realisasi_waktu = waktu_str
             session.add(pi)
 
         governance.audit(session, user, obj, "realisasi_rtp_diperbarui", risiko.opd_id, risiko.tahun, risiko.id)
     elif rtp_cee:
         # Sinkronisasi ke RtpCee.realisasi_waktu
-        if tanggal_realisasi:
-            rtp_cee.realisasi_waktu = tanggal_realisasi.isoformat()
+        if waktu_str:
+            rtp_cee.realisasi_waktu = waktu_str
             session.add(rtp_cee)
         governance.audit(session, user, obj, "realisasi_rtp_cee_diperbarui", rtp_cee.opd_id, rtp_cee.tahun)
 
@@ -1058,6 +1150,8 @@ def save_realisasi(
         "rtp_cee_id": obj.rtp_cee_id,
         "status_realisasi": obj.status_realisasi,
         "tanggal_realisasi": obj.tanggal_realisasi.isoformat() if obj.tanggal_realisasi else None,
+        "tanggal_mulai": obj.tanggal_mulai.isoformat() if obj.tanggal_mulai else None,
+        "tanggal_selesai": obj.tanggal_selesai.isoformat() if obj.tanggal_selesai else None,
         "uraian_hasil": obj.uraian_hasil,
         "hambatan": obj.hambatan,
         "bukti_berkas_id": obj.bukti_berkas_id,

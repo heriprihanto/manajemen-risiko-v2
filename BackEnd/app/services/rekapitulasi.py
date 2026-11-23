@@ -22,6 +22,7 @@ from app.models import (
     MonitoringPi,
     MonitoringRiskEvent,
     Opd,
+    RealisasiRtp,
     Risiko,
     RtpRisiko,
 )
@@ -840,6 +841,8 @@ def get_rekap_risk_event(
 
     # Ambil seluruh event untuk risiko-risiko tersebut
     events_by_risk: dict[int, list[MonitoringRiskEvent]] = {}
+    rtp_by_risk: dict[int, RtpRisiko] = {}
+    realisasi_by_risk: dict[int, RealisasiRtp] = {}
     if risk_ids:
         ev_stmt = select(MonitoringRiskEvent).where(
             MonitoringRiskEvent.risiko_id.in_(risk_ids)
@@ -847,6 +850,12 @@ def get_rekap_risk_event(
         all_events = session.exec(ev_stmt).all()
         for e in all_events:
             events_by_risk.setdefault(e.risiko_id, []).append(e)
+
+        for rt in session.exec(select(RtpRisiko).where(RtpRisiko.risiko_id.in_(risk_ids))).all():
+            rtp_by_risk[rt.risiko_id] = rt
+
+        for rel in session.exec(select(RealisasiRtp).where(RealisasiRtp.risiko_id.in_(risk_ids))).all():
+            realisasi_by_risk[rel.risiko_id] = rel
 
     # Kelompokkan per OPD
     opd_risks: dict[int, list[Risiko]] = {}
@@ -877,12 +886,35 @@ def get_rekap_risk_event(
             if evs:
                 risiko_terkena += 1
                 total_events += len(evs)
+                rt_item = rtp_by_risk.get(r.id)
+                rel_item = realisasi_by_risk.get(r.id)
+
                 for e in evs:
                     tgl_str = (
-                        e.tanggal_terjadi.strftime("%d/%m/%Y")
-                        if e.tanggal_terjadi
-                        else "-"
+                        e.waktu_kejadian
+                        if e.waktu_kejadian
+                        else (e.tanggal_terjadi.strftime("%d/%m/%Y") if e.tanggal_terjadi else "-")
                     )
+
+                    # RTP
+                    rtp_str = e.rtp or (rt_item.rencana_tindak if rt_item else None) or "-"
+
+                    # Realisasi RTP (Tanggal Realisasi RTP)
+                    real_str = None
+                    if rel_item:
+                        if rel_item.tanggal_mulai and rel_item.tanggal_selesai and rel_item.tanggal_mulai != rel_item.tanggal_selesai:
+                            real_str = f"{rel_item.tanggal_mulai.strftime('%d/%m/%Y')} s.d. {rel_item.tanggal_selesai.strftime('%d/%m/%Y')}"
+                        elif rel_item.tanggal_mulai:
+                            real_str = rel_item.tanggal_mulai.strftime('%d/%m/%Y')
+                        elif rel_item.tanggal_realisasi:
+                            real_str = rel_item.tanggal_realisasi.strftime('%d/%m/%Y')
+                    elif rt_item and rt_item.realisasi_waktu:
+                        real_str = str(rt_item.realisasi_waktu)
+                    elif e.realisasi_pelaksanaan_rtp and e.realisasi_pelaksanaan_rtp != "—":
+                        real_str = str(e.realisasi_pelaksanaan_rtp)
+                    if not real_str:
+                        real_str = "-"
+
                     log_rows.append(
                         {
                             "no": log_counter,
@@ -894,8 +926,8 @@ def get_rekap_risk_event(
                             "tanggal_terjadi": tgl_str,
                             "sebab_kejadian": e.sebab_kejadian or "-",
                             "dampak_kejadian": e.dampak_kejadian or "-",
-                            "rtp": e.rtp or "-",
-                            "realisasi_rtp": e.realisasi_pelaksanaan_rtp or "-",
+                            "rtp": rtp_str,
+                            "realisasi_rtp": real_str,
                             "keterangan": e.keterangan_rtp
                             or e.keterangan_kejadian
                             or "-",

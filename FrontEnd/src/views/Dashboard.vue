@@ -162,17 +162,19 @@ watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
 <template>
   <p v-if="loadError" role="alert">{{ loadError }}</p>
   <div v-if="data" class="dashboard-container">
+    <!--
     <div v-if="governance" class="page-card">
       <h3>Keputusan & efektivitas pengendalian</h3>
       <p><strong>{{ governance.terlambat }}</strong> tindakan terlambat · <strong>{{ governance.menunggu }}</strong> respons menunggu keputusan · <strong>{{ governance.residual_melampaui }}</strong> risiko residual melampaui batas · <strong>{{ governance.perlu_penilaian_ulang }}</strong> risiko perlu ditinjau setelah kejadian.</p>
       <router-link :to="{name:'tata-kelola'}">Buka pemantauan dan tindak lanjut →</router-link>
       <p class="muted">Selera Risiko: {{ policy?.visual?.beragam ? 'Ambang berbeda antar Pemilik Risiko; buka Matriks Risiko untuk memilih pemilik.' : policy?.visual?.ditetapkan ? `Skor 1–${policy.visual.ambang} diterima.` : 'Belum ditetapkan.' }} <router-link :to="{ name: 'selera-risiko' }">Kelola Selera Risiko</router-link></p>
     </div>
+  -->
     <!-- Header Eksekutif -->
     <div class="exec-header page-card">
       <div class="exec-header-content">
         <div class="badge-tag">Dashboard</div>
-        <h1 class="exec-title">Manajemen Risiko</h1>
+        <h1 class="exec-title">Manajemen Risiko Kota Tegal</h1>
         <div class="exec-meta">
           <span><i class="pi pi-building"></i> <strong>{{ ctx.opd?.nama_pd || 'Perangkat Daerah' }}</strong></span>
           <span class="dot-sep">•</span>

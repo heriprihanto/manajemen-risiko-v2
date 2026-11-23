@@ -470,3 +470,90 @@ Untuk implementasi aplikasi manajemen risiko ini masih development di local, htt
 saya test belum bisa akses, selalu redirect ke https://monevrkpd.tegalkota.go.id/emonev2027/admin/
 
 ganti Port API Backend menjadi 2707
+
+Buat halaman baru dibawah Monev RTP dengan nama Realisasi Infokom
+merupakan REALISASI ATAS PENGKOMUNIKASIAN ATAS KEGIATAN PENGENDALIAN YANG DIBANGUN
+datanya nanti akan melengkapi Form 8
+Field yang dientri : 
+- Tanggal realisasi, pakai date picker dari tanggal sampai dengan
+- Keterangan
+- Bukti Dukung, pakai link saja (Google drive, onedrive, dropbox, dll)
+
+Status: Selesai diimplementasikan.
+- Backend: Kolom `realisasi_mulai`, `realisasi_selesai`, `bukti_dukung` ditambahkan pada `tr_infokom` (migrasi idempotent). Endpoint `/monitoring/infokom` otomatis mengomputasi string `realisasi_waktu`.
+- Frontend: Halaman `RealisasiInfokom.vue` dibuat lengkap dengan KPI cards, pencarian & filter status, tabel rincian kegiatan komunikasi, serta modal dialog entri rentang tanggal realisasi (DatePicker Dari - Sampai), keterangan, dan tautan bukti dukung (Google Drive, OneDrive, Dropbox, dll) dengan fitur uji link.
+- Terintegrasi di menu navigasi Monev RTP (`App.vue`) dan pelaporan Form 8 (`Form8.vue`).
+
+
+Revisi halaman Form 4 — Analisis Risiko
+header judul  seperti pada halaman Realisasi Rencana Tindak Pengendalian (RTP) 
+
+Revisi halaman Daftar Risiko Prioritas
+header judul  seperti pada halaman Realisasi Rencana Tindak Pengendalian (RTP)
+
+
+Halaman Analisis Risiko,
+Revisi icon Prioritas, jika tidak prioritas warna merah
+
+Halaman Respon Risiko (RTP), hapus kolom Pemantauan PI (F9)
+
+Revisi Identifikasi Risiko
+Form entri, field Pemilik gunakan combobox data dari Unit Pemilik Risiko (UPR)
+
+Form 9 — Rencana Pemantauan Pengendalian Intern (PI)
+Penanggung Jawab Pemantauan *, gunakan combobox data dari Unit Pemilik Risiko (UPR)
+
+Form Entri Realisasi Rencana Tindak Pengendalian
+Perbaiki style Berkas Bukti Dukung (Eviden Fisik / Digital)
+
+Form Entri Realisasi Rencana Tindak Pengendalian
+Berkas Bukti Dukung (Eviden Fisik / Digital) pakai link saja (wajib diisi), hapus upload dokumen 
+
+Revisi Form Entri Realisasi Rencana Tindak Pengendalian
+- Berkas Bukti Dukung  letakkan di paling bawah form
+- Berkas Bukti Dukung bisa lebih dari satu
+- Tambahkan field Nama Berkas Bukti Dukung 
+
+
+Revisi Form Entri Realisasi Rencana Tindak Pengendalian
+Tanggal pelaksanaan pakai date picker dari tanggal sampai dengan
+
+Revisi Form Entri Realisasi Infokom
+- Berkas Bukti Dukung bisa lebih dari satu
+- Tambahkan field Nama Berkas Bukti Dukung 
+
+
+Revisi Halaman Monitoring Risk Event
+Form Entri :
+- Uraian Risiko 
+- Waktu Kejadian 
+- Tempat Kejadian
+- Uraian Kejadian 
+- Pemicu / Sebab Kejadian 
+- Dampak Kejadian
+
+
+Revisi Halaman Monitoring Kejadian Risiko
+- header judul  seperti pada halaman Realisasi Rencana Tindak Pengendalian (RTP) 
+- Entri baru, Data Tabel persis seperti pada halaman Realisasi Rencana Tindak Pengendalian (RTP) 
+
+Revisi Monitoring Kejadian Risiko (Risk Event)
+- Hapus field Informasi Pelaksanaan Rencana Tindak Pengendalian (RTP) (Opsional)
+- Entri Kejadian dari kosong, jangan tampilkan dulu daftar risiko di tabel
+
+Revisi Monitoring Kejadian Risiko (Risk Event)
+- Waktu Kejadian, pakai tanggal dan waktu (Datetime)
+
+- Tambahkan Berkas Bukti Dukung (bisa lebih dari satu )
+- Tambahkan field Nama Berkas Bukti Dukung 
+
+
+Revisi Laporan Pencatatan Kejadian Risiko (Risk Event) & Pelaksanaan RTP
+Kolom	Realisasi RTP diisi dengan tanggan realisasi RTP
+
+Buat Laporan MONITORING DAN EVALUASI RENCANA TINDAK PENGENDALIAN RISIKO 
+
+kolom :
+No | Risiko yang Terindentifikasi |	Rencana Tindak Pengendalian (RTP) |	Rencana Pelaksanaan RTP	 | Realisasi Pelaksanaan RTP |	Bukti Dokumen | 	Keterjadian
+
+

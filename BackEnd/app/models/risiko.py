@@ -131,6 +131,8 @@ class RealisasiRtp(SQLModel, table=True):
     rtp_cee_id: int | None = Field(default=None, foreign_key="tr_rtp_cee.id", index=True)
     status_realisasi: str = Field(default="belum")  # "belum", "proses", "selesai"
     tanggal_realisasi: date | None = None
+    tanggal_mulai: date | None = None
+    tanggal_selesai: date | None = None
     uraian_hasil: str | None = None
     hambatan: str | None = None
     bukti_berkas_id: int | None = Field(default=None, foreign_key="tr_rtp_bukti.id")

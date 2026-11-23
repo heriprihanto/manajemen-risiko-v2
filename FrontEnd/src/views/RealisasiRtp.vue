@@ -7,10 +7,11 @@ import Dialog from 'primevue/dialog'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import InputText from 'primevue/inputtext'
+import DatePicker from 'primevue/datepicker'
 import { useToast } from 'primevue/usetoast'
 import api from '@/api'
 import { useContextStore } from '@/stores/context'
-import { formatDate } from '@/utils/date'
+import { formatDate, parseDateOnly, toDateOnlyString } from '@/utils/date'
 
 const toast = useToast()
 const ctx = useContextStore()
@@ -38,21 +39,58 @@ const form = ref({
   risiko_id: null,
   rtp_cee_id: null,
   status_realisasi: 'belum',
+  tanggal_mulai: null,
+  tanggal_selesai: null,
   tanggal_realisasi: '',
   uraian_hasil: '',
   hambatan: '',
-  bukti_link: '',
-  bukti_berkas_id: null,
-  bukti_nama: '',
-  hapus_bukti: false,
+  bukti_list: [], // Array of { nama: '', link: '' }
 })
 
-// File upload state
-const fileInput = ref(null)
-const selectedFile = ref(null)
-const fileBase64 = ref(null)
-const fileName = ref('')
-const fileSize = ref(0)
+function formatRealisasiDate(rel) {
+  if (!rel) return ''
+  const mulai = rel.tanggal_mulai
+  const selesai = rel.tanggal_selesai
+  if (mulai && selesai && mulai !== selesai) {
+    return `${formatDate(mulai)} s.d. ${formatDate(selesai)}`
+  }
+  if (mulai) return formatDate(mulai)
+  if (selesai) return formatDate(selesai)
+  if (rel.tanggal_realisasi) return formatDate(rel.tanggal_realisasi)
+  return ''
+}
+
+function parseEvidenceList(buktiLink, buktiNama) {
+  if (!buktiLink) return []
+  try {
+    const parsed = JSON.parse(buktiLink)
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => ({
+        nama: item.nama || '',
+        link: item.link || '',
+      }))
+    }
+  } catch {
+    // bukan JSON, format string URL tunggal legacy
+  }
+  return [
+    {
+      nama: buktiNama || 'Bukti Dukung',
+      link: buktiLink,
+    },
+  ]
+}
+
+function addEvidenceRow() {
+  form.value.bukti_list.push({ nama: '', link: '' })
+}
+
+function removeEvidenceRow(idx) {
+  form.value.bukti_list.splice(idx, 1)
+  if (!form.value.bukti_list.length) {
+    addEvidenceRow()
+  }
+}
 
 // AI Assistant state
 const aiDrafting = ref(false)
@@ -116,84 +154,108 @@ function openRealisasiDialog(row) {
   selectedItem.value = row
   const rel = row.realisasi || {}
 
+  let list = parseEvidenceList(rel.bukti_link, rel.bukti_nama)
+  if (!list.length) {
+    list = [{ nama: '', link: '' }]
+  }
+
+  let mulai = rel.tanggal_mulai ? parseDateOnly(rel.tanggal_mulai) : null
+  let selesai = rel.tanggal_selesai ? parseDateOnly(rel.tanggal_selesai) : null
+
+  if (!mulai && !selesai && rel.tanggal_realisasi) {
+    const tr = String(rel.tanggal_realisasi).trim()
+    const match = tr.match(/^(\d{4}-\d{2}-\d{2})\s+s\.d\.\s+(\d{4}-\d{2}-\d{2})$/)
+    if (match) {
+      mulai = parseDateOnly(match[1])
+      selesai = parseDateOnly(match[2])
+    } else {
+      const single = tr.match(/^(\d{4}-\d{2}-\d{2})/)
+      if (single) {
+        mulai = parseDateOnly(single[1])
+      }
+    }
+  }
+
   form.value = {
     risiko_id: row.source_type === 'cee' ? null : (row.risiko_id || row.id),
     rtp_cee_id: row.rtp_cee_id || null,
     status_realisasi: rel.status_realisasi || 'belum',
+    tanggal_mulai: mulai,
+    tanggal_selesai: selesai,
     tanggal_realisasi: rel.tanggal_realisasi || '',
     uraian_hasil: rel.uraian_hasil || '',
     hambatan: rel.hambatan || '',
-    bukti_link: rel.bukti_link || '',
-    bukti_berkas_id: rel.bukti_berkas_id || null,
-    bukti_nama: rel.bukti_nama || '',
-    hapus_bukti: false,
+    bukti_list: list,
   }
-
-  // Reset file upload
-  selectedFile.value = null
-  fileBase64.value = null
-  fileName.value = ''
-  fileSize.value = 0
-  if (fileInput.value) fileInput.value.value = ''
 
   dialogVisible.value = true
-}
-
-function handleFileSelect(event) {
-  const file = event.target.files?.[0]
-  if (!file) return
-
-  if (file.size > 5 * 1024 * 1024) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Ukuran Berkas Terlalu Besar',
-      detail: 'Maksimal ukuran berkas adalah 5 MB.',
-      life: 4000,
-    })
-    event.target.value = ''
-    return
-  }
-
-  selectedFile.value = file
-  fileName.value = file.name
-  fileSize.value = Math.round(file.size / 1024)
-
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    const raw = e.target.result
-    // Extract base64 part
-    const b64 = raw.split(',')[1] || raw
-    fileBase64.value = b64
-  }
-  reader.readAsDataURL(file)
-}
-
-function triggerFileInput() {
-  if (fileInput.value) fileInput.value.click()
-}
-
-function removeFile() {
-  selectedFile.value = null
-  fileBase64.value = null
-  fileName.value = ''
-  fileSize.value = 0
-  if (fileInput.value) fileInput.value.value = ''
-  form.value.hapus_bukti = true
-  form.value.bukti_nama = ''
-  form.value.bukti_berkas_id = null
 }
 
 async function saveRealisasi() {
   if (!form.value.risiko_id && !form.value.rtp_cee_id) return
 
-  if (form.value.status_realisasi === 'selesai' && !form.value.tanggal_realisasi) {
+  if (form.value.status_realisasi === 'selesai' && !form.value.tanggal_mulai) {
     toast.add({
       severity: 'warn',
-      summary: 'Tanggal Wajib Diisi',
-      detail: 'Untuk status Selesai Terealisasi, mohon isi tanggal realisasi pelaksanaan.',
+      summary: 'Tanggal Pelaksanaan Wajib Diisi',
+      detail: 'Untuk status Selesai Terealisasi, mohon tentukan tanggal mulai pelaksanaan.',
       life: 4000,
     })
     return
+  }
+
+  if (
+    form.value.tanggal_mulai &&
+    form.value.tanggal_selesai &&
+    form.value.tanggal_mulai > form.value.tanggal_selesai
+  ) {
+    toast.add({
+      severity: 'error',
+      summary: 'Rentang Tanggal Salah',
+      detail: 'Tanggal mulai tidak boleh melewati tanggal selesai.',
+      life: 3000,
+    })
+    return
+  }
+
+  // Filter bukti yang memiliki link
+  const validEvidences = form.value.bukti_list
+    .map((b) => {
+      let lk = (b.link || '').trim()
+      if (lk && !/^https?:\/\//i.test(lk)) {
+        lk = 'https://' + lk
+      }
+      return {
+        nama: (b.nama || '').trim(),
+        link: lk,
+      }
+    })
+    .filter((b) => Boolean(b.link))
+
+  if (!validEvidences.length) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Bukti Dukung Wajib Diisi',
+      detail: 'Mohon masukkan minimal 1 tautan/link bukti dukung (Google Drive, OneDrive, Dropbox, dsb).',
+      life: 4000,
+    })
+    return
+  }
+
+  // Lengkapi nama default jika kosong
+  validEvidences.forEach((b, i) => {
+    if (!b.nama) b.nama = `Bukti Dukung ${i + 1}`
+  })
+
+  const sMulai = toDateOnlyString(form.value.tanggal_mulai)
+  const sSelesai = toDateOnlyString(form.value.tanggal_selesai)
+  let sTanggalReal = null
+  if (sMulai && sSelesai && sMulai !== sSelesai) {
+    sTanggalReal = `${sMulai} s.d. ${sSelesai}`
+  } else if (sMulai) {
+    sTanggalReal = sMulai
+  } else if (sSelesai) {
+    sTanggalReal = sSelesai
   }
 
   saving.value = true
@@ -202,20 +264,13 @@ async function saveRealisasi() {
       risiko_id: form.value.risiko_id || undefined,
       rtp_cee_id: form.value.rtp_cee_id || undefined,
       status_realisasi: form.value.status_realisasi,
-      tanggal_realisasi: form.value.tanggal_realisasi || null,
+      tanggal_mulai: sMulai,
+      tanggal_selesai: sSelesai,
+      tanggal_realisasi: sTanggalReal,
       uraian_hasil: form.value.uraian_hasil,
       hambatan: form.value.hambatan,
-      bukti_link: form.value.bukti_link,
-      hapus_bukti: form.value.hapus_bukti,
-    }
-
-    if (fileBase64.value && fileName.value) {
-      payload.bukti_upload = {
-        nama: fileName.value,
-        base64: fileBase64.value,
-      }
-    } else if (form.value.bukti_berkas_id) {
-      payload.bukti_berkas_id = form.value.bukti_berkas_id
+      bukti_link: validEvidences,
+      bukti_nama: validEvidences[0]?.nama || null,
     }
 
     await api.post('/risiko/realisasi', payload)
@@ -223,7 +278,7 @@ async function saveRealisasi() {
     toast.add({
       severity: 'success',
       summary: 'Berhasil Disimpan',
-      detail: 'Data realisasi RTP dan bukti dukung berhasil diperbarui.',
+      detail: 'Data realisasi RTP dan tautan bukti dukung berhasil diperbarui.',
       life: 3000,
     })
 
@@ -317,6 +372,14 @@ watch([() => ctx.opdId, () => ctx.tahun], loadData, { immediate: true })
         </div>
       </div>
       <div class="header-actions">
+        <router-link to="/laporan-monev-rtp" class="btn-link-monev">
+          <Button
+            label="Laporan Monev RTP"
+            icon="pi pi-file-check"
+            severity="info"
+            variant="outlined"
+          />
+        </router-link>
         <router-link to="/treated-risk" class="btn-link-treated">
           <Button
             label="Lanjut ke Treated Risk"
@@ -516,52 +579,60 @@ watch([() => ctx.opdId, () => ctx.tahun], loadData, { immediate: true })
                 <i class="pi pi-clock mr-1" /> Belum Realisasi
               </span>
 
-              <div v-if="data.realisasi?.tanggal_realisasi" class="tgl-realisasi-tag">
+              <div v-if="formatRealisasiDate(data.realisasi)" class="tgl-realisasi-tag">
                 <i class="pi pi-calendar-check text-xs text-emerald-600 mr-1" />
-                {{ formatDate(data.realisasi.tanggal_realisasi) }}
+                {{ formatRealisasiDate(data.realisasi) }}
               </div>
             </div>
           </template>
         </Column>
 
         <!-- Bukti Dukung (Eviden) -->
-        <Column header="Bukti Dukung (Eviden)" :style="{ minWidth: '180px' }">
+        <Column header="Bukti Dukung (Eviden)" :style="{ minWidth: '220px' }">
           <template #body="{ data }">
             <div class="evidence-cell">
-              <!-- Berkas Upload -->
-              <div v-if="data.realisasi?.bukti_nama && data.realisasi?.bukti_berkas_id" class="evidence-item">
+              <!-- Link URL eksternal (Bisa satu atau lebih) -->
+              <template v-if="parseEvidenceList(data.realisasi?.bukti_link, data.realisasi?.bukti_nama).length">
+                <div
+                  v-for="(ev, evIdx) in parseEvidenceList(data.realisasi?.bukti_link, data.realisasi?.bukti_nama)"
+                  :key="evIdx"
+                  class="evidence-item mb-1"
+                >
+                  <a
+                    :href="ev.link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="evidence-external-link"
+                    :title="ev.link"
+                  >
+                    <i class="pi pi-link text-xs mr-1 text-emerald-600" />
+                    <span>{{ ev.nama || 'Tautan Eviden ' + (evIdx + 1) }}</span>
+                    <i class="pi pi-external-link text-[10px] text-slate-400 ml-1" />
+                  </a>
+                </div>
+              </template>
+
+              <!-- Berkas Upload Legacy (jika data lama pernah diunggah berkas) -->
+              <div v-else-if="data.realisasi?.bukti_nama && data.realisasi?.bukti_berkas_id" class="evidence-item">
                 <a
                   :href="getEvidenceDownloadUrl(data, data.realisasi.bukti_berkas_id)"
                   target="_blank"
                   class="evidence-download-link"
-                  title="Klik untuk mengunduh bukti dukung"
+                  title="Klik untuk mengunduh berkas bukti dukung"
                 >
-                  <i class="pi pi-paperclip text-emerald-600" />
+                  <i class="pi pi-paperclip text-slate-500" />
                   <span class="evidence-name">{{ data.realisasi.bukti_nama }}</span>
                   <i class="pi pi-download text-xs text-slate-400 ml-1" />
                 </a>
               </div>
 
-              <!-- Link URL eksternal jika ada -->
-              <div v-if="data.realisasi?.bukti_link" class="evidence-item mt-1">
-                <a
-                  :href="data.realisasi.bukti_link"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="evidence-external-link"
-                >
-                  <i class="pi pi-external-link text-xs mr-1 text-blue-500" />
-                  <span>Tautan Eviden</span>
-                </a>
-              </div>
-
               <!-- Fallback jika belum ada bukti -->
               <div
-                v-if="!data.realisasi?.bukti_nama && !data.realisasi?.bukti_link"
+                v-else
                 class="no-evidence-tag"
               >
-                <i class="pi pi-file-excel mr-1 text-slate-300" />
-                <span>Belum unggah bukti</span>
+                <i class="pi pi-link mr-1 text-slate-300" />
+                <span>Belum ada tautan</span>
               </div>
             </div>
           </template>
@@ -686,106 +757,46 @@ watch([() => ctx.opdId, () => ctx.tahun], loadData, { immediate: true })
             </div>
           </div>
 
-          <!-- Tanggal Realisasi -->
+          <!-- Tanggal Realisasi (Dari Tanggal s.d. Sampai Tanggal) -->
           <div class="form-group">
             <label class="form-label" :class="{ required: form.status_realisasi === 'selesai' }">
-              Tanggal Realisasi Selesai / Aktual
+              Tanggal Pelaksanaan Realisasi
             </label>
-            <div class="input-date-wrap">
-              <input
-                type="date"
-                v-model="form.tanggal_realisasi"
-                class="native-date-input"
-                :required="form.status_realisasi === 'selesai'"
-              />
+            <div class="date-range-grid">
+              <div class="date-col">
+                <label for="tanggal_mulai" class="date-sublabel">
+                  Dari Tanggal <span v-if="form.status_realisasi === 'selesai'" class="text-rose-500">*</span>
+                </label>
+                <DatePicker
+                  id="tanggal_mulai"
+                  v-model="form.tanggal_mulai"
+                  dateFormat="dd-mm-yy"
+                  showIcon
+                  showButtonBar
+                  placeholder="Pilih tanggal mulai"
+                  :maxDate="form.tanggal_selesai || undefined"
+                  class="w-full"
+                />
+              </div>
+              <div class="date-col">
+                <label for="tanggal_selesai" class="date-sublabel">
+                  Sampai Tanggal
+                </label>
+                <DatePicker
+                  id="tanggal_selesai"
+                  v-model="form.tanggal_selesai"
+                  dateFormat="dd-mm-yy"
+                  showIcon
+                  showButtonBar
+                  placeholder="Pilih tanggal selesai"
+                  :minDate="form.tanggal_mulai || undefined"
+                  class="w-full"
+                />
+              </div>
             </div>
             <small class="form-hint">
-              Cantumkan tanggal penetapan, penerbitan dokumen, atau selesainya kegiatan pengendalian.
+              Pilih rentang tanggal pelaksanaan realisasi tindak pengendalian (dari tanggal mulai s.d. tanggal selesai). Jika pelaksanaan dilakukan satu hari, cukup tentukan Tanggal Mulai atau samakan kedua tanggal.
             </small>
-          </div>
-
-          <!-- Upload Berkas Bukti Dukung (Eviden) -->
-          <div class="form-group">
-            <label class="form-label">Berkas Bukti Dukung (Eviden Fisik / Digital)</label>
-            
-            <!-- Hidden input file -->
-            <input
-              type="file"
-              ref="fileInput"
-              class="hidden"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-              @change="handleFileSelect"
-            />
-
-            <!-- Preview berkas yang sudah ada atau baru dipilih -->
-            <div v-if="form.bukti_nama && !form.hapus_bukti" class="current-file-box">
-              <div class="current-file-info">
-                <i class="pi pi-file-pdf text-xl text-rose-500" />
-                <div class="file-text">
-                  <span class="file-name">{{ form.bukti_nama }}</span>
-                  <span class="file-sub">Berkas tersimpan di database</span>
-                </div>
-              </div>
-              <div class="current-file-actions">
-                <Button
-                  label="Ganti Berkas"
-                  icon="pi pi-upload"
-                  size="small"
-                  severity="secondary"
-                  variant="outlined"
-                  @click="triggerFileInput"
-                />
-                <Button
-                  icon="pi pi-trash"
-                  size="small"
-                  severity="danger"
-                  variant="text"
-                  title="Hapus berkas"
-                  @click="removeFile"
-                />
-              </div>
-            </div>
-
-            <!-- Preview berkas yang baru dipilih (belum disimpan) -->
-            <div v-else-if="selectedFile" class="current-file-box new-file">
-              <div class="current-file-info">
-                <i class="pi pi-file text-xl text-emerald-600" />
-                <div class="file-text">
-                  <span class="file-name">{{ fileName }} ({{ fileSize }} KB)</span>
-                  <span class="file-sub text-emerald-700">Berkas baru siap diunggah saat disimpan</span>
-                </div>
-              </div>
-              <Button
-                icon="pi pi-times"
-                size="small"
-                severity="danger"
-                variant="text"
-                title="Batal pilih"
-                @click="removeFile"
-              />
-            </div>
-
-            <!-- Upload drop area jika belum ada berkas -->
-            <div v-else class="upload-dropzone" @click="triggerFileInput">
-              <i class="pi pi-cloud-upload upload-icon" />
-              <div class="upload-text">
-                <strong>Klik untuk memilih berkas bukti dukung</strong>
-                <span>Format: PDF, Word, Excel, Gambar (Maks. 5 MB)</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tautan Bukti Online (Alternatif Cloud Link) -->
-          <div class="form-group">
-            <label class="form-label">Tautan / Link Cloud Dokumen (Opsional)</label>
-            <div class="input-with-icon">
-              <i class="pi pi-link input-icon" />
-              <InputText
-                v-model="form.bukti_link"
-                placeholder="https://drive.google.com/... atau tautan sistem eksternal"
-                class="form-input-text"
-              />
-            </div>
           </div>
 
           <!-- Uraian Hasil Pelaksanaan -->
@@ -819,6 +830,89 @@ watch([() => ctx.opdId, () => ctx.tahun], loadData, { immediate: true })
               placeholder="Catat kendala keterlambatan atau hambatan koordinasi jika kegiatan belum selesai 100%..."
               class="form-textarea"
             />
+          </div>
+
+          <!-- Berkas Bukti Dukung (Paling Bawah Form, Bisa Lebih dari Satu) -->
+          <div class="form-group">
+            <div class="form-label-row">
+              <label class="form-label mb-0 required">
+                Berkas Bukti Dukung (Eviden Fisik / Digital)
+              </label>
+              <span class="label-badge-optional">Google Drive / OneDrive / Dropbox / Cloud Storage</span>
+            </div>
+            <small class="form-hint" style="margin-top: 0; margin-bottom: 0.65rem;">
+              Masukkan nama berkas dan tautan link bukti dukung. Anda dapat menambahkan lebih dari satu berkas.
+            </small>
+
+            <div class="evidence-list-wrap">
+              <div
+                v-for="(b, idx) in form.bukti_list"
+                :key="idx"
+                class="evidence-row-card"
+              >
+                <div class="evidence-row-header">
+                  <span class="evidence-row-num">#{{ idx + 1 }}</span>
+                  <span class="evidence-row-title">Berkas Bukti Dukung {{ idx + 1 }}</span>
+                  <Button
+                    v-if="form.bukti_list.length > 1"
+                    icon="pi pi-trash"
+                    severity="danger"
+                    text
+                    rounded
+                    size="small"
+                    class="btn-remove-evidence"
+                    v-tooltip.top="'Hapus berkas ini'"
+                    @click="removeEvidenceRow(idx)"
+                  />
+                </div>
+
+                <div class="evidence-fields-grid">
+                  <div class="field-item">
+                    <label class="field-sublabel">Nama Berkas Bukti Dukung</label>
+                    <InputText
+                      v-model="b.nama"
+                      :placeholder="`Contoh: SK Pengendalian / SOP Pemeliharaan / Foto Kegiatan ${idx + 1}`"
+                      class="form-input-text-sub"
+                    />
+                  </div>
+
+                  <div class="field-item">
+                    <label class="field-sublabel">Tautan / Link Dokumen Bukti Dukung <span class="text-rose-500">*</span></label>
+                    <div class="input-with-icon">
+                      <i class="pi pi-link input-icon" />
+                      <InputText
+                        v-model="b.link"
+                        placeholder="https://drive.google.com/... atau link cloud storage"
+                        class="form-input-text"
+                        required
+                      />
+                      <Button
+                        v-if="b.link"
+                        icon="pi pi-external-link"
+                        severity="secondary"
+                        text
+                        size="small"
+                        class="btn-test-link"
+                        v-tooltip.top="'Uji / Buka Tautan'"
+                        @click="window.open(b.link.startsWith('http') ? b.link : 'https://' + b.link, '_blank')"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="add-evidence-action">
+                <Button
+                  label="Tambah Berkas Bukti Dukung Lainnya"
+                  icon="pi pi-plus"
+                  severity="secondary"
+                  variant="outlined"
+                  size="small"
+                  class="btn-add-evidence"
+                  @click="addEvidenceRow"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1362,90 +1456,319 @@ watch([() => ctx.opdId, () => ctx.tahun], loadData, { immediate: true })
   box-shadow: 0 0 0 1px #059669;
 }
 
-/* File Upload Components */
+/* File Upload Components & Evidence Styles */
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.45rem;
+}
+
+.label-badge-format {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.label-badge-optional {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #0284c7;
+  background: #f0f9ff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
 .upload-dropzone {
   border: 2px dashed #cbd5e1;
   border-radius: 0.75rem;
-  padding: 1.5rem;
+  padding: 1.5rem 1rem;
   text-align: center;
   cursor: pointer;
   background: #f8fafc;
-  transition: all 0.2s;
+  transition: all 0.2s ease-in-out;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 
-.upload-dropzone:hover {
+.upload-dropzone:hover,
+.upload-dropzone.is-dragging {
   border-color: #059669;
-  background: #ecfdf5;
+  background: #f0fdf4;
 }
 
-.upload-icon {
-  font-size: 2rem;
-  color: #64748b;
-}
-
-.upload-dropzone:hover .upload-icon {
+.upload-icon-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
   color: #059669;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s;
+}
+
+.upload-dropzone:hover .upload-icon-circle {
+  transform: translateY(-2px);
 }
 
 .upload-text {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  font-size: 0.825rem;
-  color: #475569;
 }
 
-.current-file-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.65rem;
-  padding: 0.75rem 1rem;
-}
-
-.current-file-box.new-file {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-}
-
-.current-file-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.file-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.file-name {
-  font-size: 0.85rem;
-  font-weight: 700;
+.upload-title {
+  font-size: 0.875rem;
   color: #1e293b;
+  font-weight: 600;
 }
 
-.file-sub {
-  font-size: 0.725rem;
+.upload-subtitle {
+  font-size: 0.75rem;
   color: #64748b;
 }
 
-.current-file-actions {
+.upload-btn-trigger {
+  margin-top: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.85rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.upload-dropzone:hover .upload-btn-trigger {
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+/* Evidence File Card */
+.evidence-file-card {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: space-between;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid #e2e8f0;
+  gap: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.evidence-file-card.stored-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.evidence-file-card.new-card {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.file-card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.file-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.file-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.file-title {
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: #0f172a;
+  word-break: break-all;
+}
+
+.badge-status-file {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.badge-stored {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-new {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.file-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.file-view-link {
+  color: #0284c7;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.file-view-link:hover {
+  text-decoration: underline;
+  color: #0369a1;
+}
+
+.file-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.btn-file-action {
+  font-size: 0.78rem !important;
+  padding: 0.35rem 0.75rem !important;
+}
+
+.btn-file-delete {
+  font-size: 0.78rem !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+}
+
+/* Evidence List & Multi Evidence Styles */
+.evidence-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.evidence-row-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  transition: border-color 0.15s ease;
+}
+
+.evidence-row-card:hover {
+  border-color: #cbd5e1;
+}
+
+.evidence-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.evidence-row-num {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.evidence-row-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  margin-left: 0.4rem;
+  flex: 1;
+}
+
+.btn-remove-evidence {
+  width: 26px !important;
+  height: 26px !important;
+  padding: 0 !important;
+}
+
+.evidence-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 0.75rem;
+}
+
+.field-sublabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.3rem;
+}
+
+.form-input-text-sub {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.add-evidence-action {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.25rem;
+}
+
+.btn-add-evidence {
+  font-size: 0.8rem !important;
+}
+
+@media (max-width: 640px) {
+  .evidence-fields-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .input-with-icon {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .input-icon {
@@ -1453,12 +1776,21 @@ watch([() => ctx.opdId, () => ctx.tahun], loadData, { immediate: true })
   left: 0.85rem;
   color: #94a3b8;
   font-size: 0.875rem;
+  pointer-events: none;
 }
 
 .form-input-text {
   width: 100%;
-  padding-left: 2.25rem;
+  padding-left: 2.25rem !important;
+  padding-right: 2.5rem !important;
   font-size: 0.875rem;
+}
+
+.btn-test-link {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .form-textarea {
@@ -1470,6 +1802,30 @@ watch([() => ctx.opdId, () => ctx.tahun], loadData, { immediate: true })
 .btn-ai-draft {
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
+}
+
+.date-range-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.date-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.date-sublabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+@media (max-width: 640px) {
+  .date-range-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .dialog-footer {

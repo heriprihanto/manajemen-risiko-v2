@@ -22,8 +22,12 @@ class Infokom(SQLModel, table=True):
     rencana_mulai: date | None = None
     rencana_selesai: date | None = None
     rencana_waktu: str | None = None
+    realisasi_mulai: date | None = None
+    realisasi_selesai: date | None = None
     realisasi_waktu: str | None = None
     keterangan: str | None = None
+    bukti_dukung: str | None = None
+    bukti_nama: str | None = None
     updated_at: datetime = Field(default_factory=now_wib)
 
 
@@ -56,9 +60,14 @@ class MonitoringRiskEvent(SQLModel, table=True):
     risiko_id: int = Field(foreign_key="tr_risiko.id", index=True)
     no_urut: str | None = None
     tanggal_terjadi: date | None = None
+    waktu_kejadian: str | None = None
+    tempat_kejadian: str | None = None
+    uraian_kejadian: str | None = None
     sebab_kejadian: str | None = None
     dampak_kejadian: str | None = None
     keterangan_kejadian: str | None = None
+    bukti_link: str | None = None
+    bukti_nama: str | None = None
     rtp: str | None = None
     rencana_pelaksanaan_rtp: str | None = None
     realisasi_pelaksanaan_rtp: str | None = None

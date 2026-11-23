@@ -23,9 +23,9 @@ const toast = useToast()
 const confirm = useConfirm()
 
 const jenisLabel = {
-  strategis_pemda: 'Risiko Strategis Pemda (Form 3.a)',
-  strategis_opd: 'Risiko Strategis OPD (Form 3.b)',
-  operasional_opd: 'Risiko Operasional OPD (Form 3.c)',
+  strategis_pemda: 'Risiko Strategis Pemda',
+  strategis_opd: 'Risiko Strategis OPD',
+  operasional_opd: 'Risiko Operasional OPD',
 }
 const rows = ref([])
 const loading = ref(true)
@@ -178,6 +178,49 @@ async function load() {
 
 // Master Bidang Urusan (ref_bidang_urusan)
 const bidangUrusanList = ref([])
+
+// Master Unit Pemilik Risiko (UPR) untuk combobox Pemilik Risiko
+const uprList = ref([])
+const pemilikOptions = computed(() => {
+  const options = []
+  const seen = new Set()
+
+  // 1. Data dari UPR (prioritas utama)
+  for (const u of uprList.value) {
+    const jabatan = (u.jabatan || '').trim()
+    if (jabatan && !seen.has(jabatan)) {
+      seen.add(jabatan)
+      options.push({
+        label: jabatan,
+        value: jabatan,
+      })
+    }
+  }
+
+  // 2. Jika nilai saat ini belum ada di opsi, tambahkan agar tidak hilang
+  const currentVal = (editing.value?.pemilik_risiko || '').trim()
+  if (currentVal && !seen.has(currentVal)) {
+    options.unshift({
+      label: currentVal,
+      value: currentVal,
+      jabatan: currentVal,
+    })
+  }
+
+  return options
+})
+
+async function loadUpr() {
+  if (!ctx.opdId) return
+  try {
+    const { data } = await api.get('/upr', {
+      params: { opd_id: ctx.opdId, per_page: 500 },
+    })
+    uprList.value = data.items || []
+  } catch (err) {
+    console.error('Gagal memuat data UPR:', err)
+  }
+}
 const bidangUrusanOptions = computed(() =>
   bidangUrusanList.value.map((b) => ({
     id: b.id,
@@ -542,8 +585,12 @@ onMounted(() => {
   load()
   loadBidangUrusan()
   loadKamus()
+  loadUpr()
 })
-watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
+watch(() => [ctx.opdId, ctx.tahun, props.jenis], () => {
+  load()
+  loadUpr()
+})
 </script>
 
 <template>
@@ -811,7 +858,19 @@ watch(() => [ctx.opdId, ctx.tahun, props.jenis], load)
       </div>
       <div style="grid-column: 1 / -1">
         <label class="muted lbl">Pemilik Risiko</label>
-        <InputText v-model="editing.pemilik_risiko" style="width: 100%" />
+        <Select
+          v-model="editing.pemilik_risiko"
+          :options="pemilikOptions"
+          optionLabel="label"
+          optionValue="value"
+          editable
+          filter
+          placeholder="Pilih atau ketik Unit Pemilik Risiko (UPR)..."
+          style="width: 100%"
+        />
+        <small class="muted" style="font-size: 0.72rem; display: block; margin-top: 3px;">
+          Pilih jabatan dari daftar UPR atau ketik langsung jika belum terdaftar.
+        </small>
       </div>
       <div style="grid-column: 1 / -1">
         <label class="muted lbl">Sebab (Uraian)</label>

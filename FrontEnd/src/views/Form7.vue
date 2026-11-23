@@ -8,6 +8,7 @@ import InputText from 'primevue/inputtext'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Menu from 'primevue/menu'
+import Select from 'primevue/select'
 import { useToast } from 'primevue/usetoast'
 import api from '@/api'
 import { useContextStore } from '@/stores/context'
@@ -118,6 +119,47 @@ const savingPi = ref(false)
 const editingPi = ref({})
 const errorPi = ref('')
 const legacyPiWaktu = ref('')
+
+// Data UPR untuk pilihan Penanggung Jawab Pemantauan (Form 9)
+const uprList = ref([])
+const uprPjOptions = computed(() => {
+  const options = []
+  const seen = new Set()
+
+  for (const u of uprList.value) {
+    const jabatan = (u.jabatan || '').trim()
+    if (jabatan && !seen.has(jabatan)) {
+      seen.add(jabatan)
+      options.push({
+        label: jabatan,
+        value: jabatan,
+      })
+    }
+  }
+
+  // Jika nilai saat ini belum ada dalam list, sertakan agar tidak hilang
+  const current = (editingPi.value?.penanggung_jawab || '').trim()
+  if (current && !seen.has(current)) {
+    options.unshift({
+      label: current,
+      value: current,
+    })
+  }
+
+  return options
+})
+
+async function loadUpr() {
+  if (!ctx.opdId) return
+  try {
+    const { data } = await api.get('/upr', {
+      params: { opd_id: ctx.opdId, per_page: 500 },
+    })
+    uprList.value = data.items || []
+  } catch (err) {
+    console.error('Gagal memuat UPR untuk Form 9:', err)
+  }
+}
 
 const levelColors = {
   'Sangat Rendah (1)': { color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
@@ -250,12 +292,12 @@ function toggleActionMenu(event, row) {
       command: () => openEditRtp(row),
     },
     {
-      label: 'Informasi & Komunikasi (Form 8)',
+      label: 'Informasi & Komunikasi',
       icon: 'pi pi-megaphone',
       command: () => openEditInfokom(row),
     },
     {
-      label: 'Rencana Pemantauan PI (Form 9)',
+      label: 'Rencana Pemantauan PI ',
       icon: 'pi pi-eye',
       command: () => openEditPi(row),
     },
@@ -537,6 +579,7 @@ watch(
     dialogInfokom.value = false
     dialogPi.value = false
     load()
+    loadUpr()
   },
   { immediate: true }
 )
@@ -800,31 +843,6 @@ watch(
               <div class="empty-dashed">
                 <i class="pi pi-plus-circle" />
                 <span>Isi Form 8 (Infokom)</span>
-              </div>
-            </div>
-          </template>
-        </Column>
-
-        <!-- Pemantauan PI (Form 9) -->
-        <Column header="Pemantauan PI (F9)" :style="{ minWidth: '210px' }">
-          <template #body="{ data }">
-            <div v-if="data.monitoring_pi?.metode_pemantauan" class="subform-card card-f9">
-              <div class="subform-header">
-                <span class="subform-type"><i class="pi pi-eye" /> Bentuk / Metode</span>
-                <span class="subform-status status-ok">Lengkap</span>
-              </div>
-              <div class="subform-main">{{ data.monitoring_pi.metode_pemantauan }}</div>
-              <div v-if="data.monitoring_pi.penanggung_jawab" class="subform-meta">
-                <span>PJ: {{ data.monitoring_pi.penanggung_jawab }}</span>
-              </div>
-              <div v-if="data.monitoring_pi.rencana_waktu" class="subform-time">
-                <i class="pi pi-clock" /> {{ formatDate(data.monitoring_pi.rencana_waktu) }}
-              </div>
-            </div>
-            <div v-else class="subform-empty" @click="openEditPi(data)">
-              <div class="empty-dashed">
-                <i class="pi pi-plus-circle" />
-                <span>Isi Form 9 (Pemantauan PI)</span>
               </div>
             </div>
           </template>
@@ -1192,7 +1210,7 @@ watch(
     <!-- ==================== Dialog 3: Form 9 - Rencana Pemantauan PI ==================== -->
     <Dialog
       v-model:visible="dialogPi"
-      header="Form 9 — Rencana Pemantauan Pengendalian Intern (PI)"
+      header="Rencana Pemantauan Pengendalian Intern"
       modal
       :closable="!savingPi"
       :closeOnEscape="!savingPi"
@@ -1230,14 +1248,21 @@ watch(
           <!-- Penanggung Jawab -->
           <div class="field-item">
             <label for="f9-pj" class="field-label">Penanggung Jawab Pemantauan <span class="req">*</span></label>
-            <InputText
+            <Select
               id="f9-pj"
               v-model="editingPi.penanggung_jawab"
-              required
-              maxlength="255"
-              placeholder="Contoh: Tim Kepatuhan Intern / Kasubbag Umum / Inspektorat"
+              :options="uprPjOptions"
+              optionLabel="label"
+              optionValue="value"
+              editable
+              filter
+              placeholder="Pilih atau ketik Penanggung Jawab dari UPR..."
+              class="w-full"
               fluid
             />
+            <small class="field-hint" style="font-size: 0.72rem; color: #64748b; margin-top: 3px; display: block;">
+              Pilih dari daftar jabatan UPR OPD ini atau ketik langsung jika belum terdaftar.
+            </small>
           </div>
 
           <!-- Rencana Waktu -->

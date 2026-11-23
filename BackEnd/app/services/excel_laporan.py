@@ -6,6 +6,7 @@ selalu sama dengan yang tampil/dicetak di layar. Susunan kolom & judul tiap
 sheet mengikuti komponen di `FrontEnd/src/components/laporan/`.
 """
 from io import BytesIO
+import json
 
 from openpyxl import Workbook
 from sqlmodel import Session, select
@@ -45,6 +46,7 @@ SECTIONS: list[tuple[str, str, str]] = [
     ("f8", "Form 8", "Informasi & Komunikasi"),
     ("f9", "Form 9", "Rencana Pemantauan PI"),
     ("f10", "Form 10", "Monitoring Risk Event & RTP"),
+    ("monev_rtp", "Monev RTP", "Monitoring & Evaluasi Rencana Tindak Pengendalian Risiko"),
 ]
 SECTION_KEYS = [s[0] for s in SECTIONS]
 
@@ -532,22 +534,101 @@ def build_f9(ctx: Ctx, wb: Workbook):
 def build_f10(ctx: Ctx, wb: Workbook):
     rows = [r for r in monitoring.list_event(ctx.opd_id, ctx.tahun, ctx.s)
             if r.get("events")]
-    sh = Sheet(wb.create_sheet("Form 10"), [12, 40, 12, 32, 32, 34, 30])
+    sh = Sheet(wb.create_sheet("Form 10"), [12, 35, 18, 20, 30, 25, 25, 30, 30])
     ctx.head(sh, "Form 10",
              "Pencatatan Kejadian Risiko (Risk Event) & Pelaksanaan RTP")
-    sh.header(["Kode", "Risiko", "Tanggal", "Sebab", "Dampak", "RTP",
-               "Realisasi RTP"])
+    sh.header(["Kode", "Risiko", "Waktu", "Tempat", "Uraian Kejadian",
+               "Pemicu / Sebab", "Dampak", "RTP", "Realisasi RTP"])
     groups = _group_by_jenis(rows)
     for label, items in groups:
         sh.group_row(label, first_col_blank=False)
         for r in items:
             for ev in r["events"]:
-                sh.data([r.get("kode_risiko"), r.get("uraian_risiko"),
-                         ev.get("tanggal_terjadi"), ev.get("sebab_kejadian"),
-                         ev.get("dampak_kejadian"), ev.get("rtp"),
-                         ev.get("realisasi_pelaksanaan_rtp")], center={3})
+                sh.data([
+                    r.get("kode_risiko"),
+                    r.get("uraian_risiko"),
+                    ev.get("waktu_kejadian") or (ev.get("tanggal_terjadi").strftime("%d/%m/%Y") if ev.get("tanggal_terjadi") else "-"),
+                    ev.get("tempat_kejadian") or "-",
+                    ev.get("uraian_kejadian") or "-",
+                    ev.get("sebab_kejadian") or "-",
+                    ev.get("dampak_kejadian") or "-",
+                    ev.get("rtp") or r.get("rtp") or "-",
+                    ev.get("realisasi_pelaksanaan_rtp") or r.get("realisasi_rtp") or "-",
+                ], center={3})
     if not groups:
         sh.empty_row("Belum ada kejadian dicatat")
+    ctx.sign(sh, f"Kota Tegal, {ctx.tahun}")
+
+
+def build_monev_rtp(ctx: Ctx, wb: Workbook):
+    res = risiko.list_realisasi(ctx.opd_id, ctx.tahun, ctx.s)
+    all_items = res.get("items", []) if isinstance(res, dict) else res
+    items = [it for it in all_items if it.get("source_type") == "risiko"]
+
+    sh = Sheet(wb.create_sheet("Monev RTP"), [6, 40, 40, 22, 22, 38, 32])
+    ctx.head(sh, "MONITORING DAN EVALUASI RENCANA TINDAK PENGENDALIAN RISIKO",
+             f"{ctx.opd_name.upper()} TAHUN {ctx.tahun}")
+    sh.header(["No", "Risiko yang Terindentifikasi", "Rencana Tindak Pengendalian (RTP)",
+               "Rencana Pelaksanaan RTP", "Realisasi Pelaksanaan RTP",
+               "Bukti Dokumen", "Keterjadian"])
+
+    groups = _group_by_jenis(items)
+    for label, g_items in groups:
+        sh.group_row(label, first_col_blank=False)
+        for idx, it in enumerate(g_items, start=1):
+            rt = it.get("rtp") or {}
+            rel = it.get("realisasi") or {}
+            evs = it.get("events") or []
+
+            risiko_text = f"[{it.get('kode_risiko')}] {it.get('uraian_risiko')}" if it.get("kode_risiko") else (it.get("uraian_risiko") or "-")
+            rtp_text = rt.get("rencana_tindak") or "-"
+            rencana_tgl = rt.get("target_waktu") or "-"
+
+            real_tgl = None
+            if rel.get("tanggal_mulai") and rel.get("tanggal_selesai") and rel.get("tanggal_mulai") != rel.get("tanggal_selesai"):
+                real_tgl = f"{rel.get('tanggal_mulai')} s.d. {rel.get('tanggal_selesai')}"
+            elif rel.get("tanggal_mulai"):
+                real_tgl = rel.get("tanggal_mulai")
+            elif rel.get("tanggal_realisasi"):
+                real_tgl = rel.get("tanggal_realisasi")
+            elif rt.get("realisasi_waktu"):
+                real_tgl = str(rt.get("realisasi_waktu"))
+            real_tgl = real_tgl or "-"
+
+            bukti_lines = []
+            raw_link = rel.get("bukti_link")
+            if raw_link:
+                try:
+                    parsed = json.loads(raw_link)
+                    if isinstance(parsed, list):
+                        for b in parsed:
+                            nama = b.get("nama") or b.get("link") or ""
+                            if nama:
+                                bukti_lines.append(nama)
+                except Exception:
+                    pass
+            if not bukti_lines and rel.get("bukti_nama"):
+                bukti_lines.append(rel.get("bukti_nama"))
+            elif not bukti_lines and raw_link:
+                bukti_lines.append(str(raw_link))
+            bukti_text = "\n".join(bukti_lines) if bukti_lines else "Tidak ada dokumen"
+
+            if evs:
+                event_lines = ["Risiko terjadi"]
+                for e in evs:
+                    sub = e.get("uraian_kejadian") or e.get("dampak_kejadian") or e.get("sebab_kejadian")
+                    if sub:
+                        event_lines.append(f"- {sub}")
+                keterjadian_text = "\n".join(event_lines)
+            else:
+                keterjadian_text = "Risiko tidak terjadi"
+
+            sh.data([idx, risiko_text, rtp_text, rencana_tgl, real_tgl, bukti_text, keterjadian_text],
+                    center={1, 4, 5})
+
+    if not items:
+        sh.empty_row("Belum ada data rencana tindak pengendalian risiko")
+
     ctx.sign(sh, f"Kota Tegal, {ctx.tahun}")
 
 
@@ -557,6 +638,7 @@ BUILDERS = {
     "f3a": build_f3a, "f3b": build_f3b, "f3c": build_f3c,
     "f4": build_f4, "f5": build_f5, "f7": build_f7,
     "f8": build_f8, "f9": build_f9, "f10": build_f10,
+    "monev_rtp": build_monev_rtp,
 }
 
 

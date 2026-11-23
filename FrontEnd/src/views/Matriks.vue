@@ -1,6 +1,8 @@
 <script setup>
-import { watch, ref } from 'vue'
+import { computed, watch, ref } from 'vue'
 import api from '@/api'
+import Select from 'primevue/select'
+import AppLoader from '@/components/AppLoader.vue'
 import { useContextStore } from '@/stores/context'
 import {
   getMatrixScore,
@@ -10,9 +12,12 @@ import {
 
 const ctx = useContextStore()
 const data = ref(null)
+const loading = ref(false)
 const error = ref('')
 const owner = ref(null)
+const allOwners = ref([])
 let serial = 0
+let isResettingOwner = false
 
 const dampakHeaders = [
   { val: 1, label: 'Tidak Signifikan' },
@@ -29,6 +34,19 @@ const kemungkinanHeaders = [
   { val: 2, label: 'Jarang terjadi' },
   { val: 1, label: 'Hampir tidak terjadi' },
 ]
+
+const pemilikOptions = computed(() => {
+  const opts = [{ label: 'Semua Pemilik Risiko', value: null }]
+  const rawOwners = allOwners.value.length ? allOwners.value : (data.value?.pemilik || [])
+  const unique = Array.from(new Set(rawOwners))
+  for (const p of unique) {
+    opts.push({
+      label: p || 'Belum diisi / tingkat entitas',
+      value: p,
+    })
+  }
+  return opts
+})
 
 // Warna sel heatmap sesuai standar referensi
 function cellBgColor(k, d) {
@@ -53,24 +71,53 @@ function cellItems(k, d) {
   return data.value?.cells?.[`${k}-${d}`] || []
 }
 
-async function load() {
+async function load(isInitial = false) {
   if (!ctx.ready) return
   const id = ++serial
-  error.value = ''; data.value = null
+  error.value = ''
+  if (isInitial || !data.value) {
+    data.value = null
+  }
+  loading.value = true
   try {
-  const { data: d } = await api.get('/risiko/matriks', {
-    params: { opd_id: ctx.opdId, tahun: ctx.tahun, ...(owner.value !== null ? { pemilik: owner.value } : {}) },
-  })
-  if (id === serial) data.value = d
-  } catch (e) { if (id === serial) error.value = 'Gagal memuat matriks risiko.' }
+    const params = {
+      opd_id: ctx.opdId,
+      tahun: ctx.tahun,
+      ...(owner.value !== null && owner.value !== undefined ? { pemilik: owner.value } : {})
+    }
+    const { data: d } = await api.get('/risiko/matriks', { params })
+    if (id === serial) {
+      data.value = d
+      if (d?.pemilik && (!allOwners.value.length || owner.value === null)) {
+        allOwners.value = d.pemilik
+      }
+    }
+  } catch (e) {
+    if (id === serial) error.value = 'Gagal memuat matriks risiko.'
+  } finally {
+    if (id === serial) loading.value = false
+  }
 }
-watch([() => ctx.opdId, () => ctx.tahun], () => { owner.value = null; load() }, { immediate: true })
-watch(owner, load)
+
+watch([() => ctx.opdId, () => ctx.tahun], () => {
+  allOwners.value = []
+  data.value = null
+  isResettingOwner = true
+  owner.value = null
+  isResettingOwner = false
+  load(true)
+}, { immediate: true })
+
+watch(owner, () => {
+  if (isResettingOwner) return
+  load(false)
+})
 </script>
 
 <template>
-  <p v-if="error" role="alert">{{ error }}</p>
-  <div v-if="data" class="page-card">
+  <p v-if="error" role="alert" class="error-msg">{{ error }}</p>
+  <AppLoader v-if="loading && !data" label="Memuat matriks risiko…" />
+  <div v-else-if="data" class="page-card">
     <div class="header-banner">
       <h2 class="title"><i class="pi pi-th-large"></i> Matriks Analisis Risiko 5 × 5</h2>
       <p class="muted" style="margin: 4px 0 0 0">
@@ -78,10 +125,42 @@ watch(owner, load)
         <strong>Besaran Risiko (Skala 1–25)</strong>. Garis ungu mengikuti ambang Selera Risiko yang ditetapkan Pemilik Risiko.
         Warna menunjukkan level risiko. Skor ≤ ambang termasuk area penerimaan.
       </p>
-      <label>Pemilik Risiko <select v-model="owner"><option :value="null">Semua Pemilik Risiko</option><option v-for="n in data.pemilik" :key="n" :value="n">{{ n || 'Belum diisi / tingkat entitas' }}</option></select></label>
-      <p v-if="data.selera?.beragam">Ambang berbeda antar pemilik. Pilih Pemilik Risiko untuk melihat batas penerimaannya.</p>
-      <p v-else-if="data.selera?.ditetapkan">Ambang Selera Risiko: <strong>{{ data.selera.ambang }}</strong>. Skor 1–{{ data.selera.ambang }} diterima.</p>
-      <p v-else>Selera Risiko belum ditetapkan. <router-link :to="{ name: 'selera-risiko' }">Buka pengaturan</router-link>.</p>
+
+      <div class="filter-toolbar">
+        <div class="filter-item">
+          <label for="pemilik-risiko-select" class="filter-label">
+            <i class="pi pi-user text-primary" />
+            <span>Pemilik Risiko:</span>
+          </label>
+          <Select
+            id="pemilik-risiko-select"
+            v-model="owner"
+            :options="pemilikOptions"
+            optionLabel="label"
+            optionValue="value"
+            filter
+            filterPlaceholder="Cari pemilik risiko…"
+            placeholder="Semua Pemilik Risiko"
+            class="pemilik-select"
+            :loading="loading"
+          />
+        </div>
+
+        <div class="status-box-wrap">
+          <div v-if="data.selera?.beragam" class="status-badge badge-warning">
+            <i class="pi pi-exclamation-triangle" />
+            <span>Ambang berbeda antar pemilik. Pilih <strong>Pemilik Risiko</strong> untuk melihat batas penerimaannya.</span>
+          </div>
+          <div v-else-if="data.selera?.ditetapkan" class="status-badge badge-info">
+            <i class="pi pi-info-circle" />
+            <span>Ambang Selera Risiko: <strong>{{ data.selera.ambang }}</strong> (Skor 1–{{ data.selera.ambang }} diterima).</span>
+          </div>
+          <div v-else class="status-badge badge-neutral">
+            <i class="pi pi-cog" />
+            <span>Selera Risiko belum ditetapkan. <router-link :to="{ name: 'selera-risiko' }" class="link-selera">Buka pengaturan</router-link>.</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="matrix-scroll">
@@ -157,6 +236,14 @@ watch(owner, load)
 </template>
 
 <style scoped>
+.error-msg {
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
 .header-banner {
   margin-bottom: 16px;
 }
@@ -168,6 +255,91 @@ watch(owner, load)
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #334155;
+  white-space: nowrap;
+}
+.pemilik-select {
+  min-width: 280px;
+  max-width: 420px;
+}
+.status-box-wrap {
+  display: flex;
+  align-items: center;
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.badge-warning {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fef3c7;
+}
+.badge-info {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #dbeafe;
+}
+.badge-neutral {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.link-selera {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.link-selera:hover {
+  color: #1d4ed8;
+}
+@media (max-width: 768px) {
+  .filter-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pemilik-select {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+  .status-box-wrap {
+    justify-content: flex-start;
+  }
 }
 .matrix-scroll {
   overflow-x: auto;

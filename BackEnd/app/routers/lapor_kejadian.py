@@ -250,6 +250,9 @@ def update_status_approval(
         event = legacy[0] if legacy else MonitoringRiskEvent(
             risiko_id=body.risiko_id,
             tanggal_terjadi=tgl,
+            waktu_kejadian=item.waktu_kejadian,
+            tempat_kejadian=item.tempat,
+            uraian_kejadian=item.uraian_kejadian,
             sebab_kejadian=item.pemicu,
             dampak_kejadian=item.uraian_kejadian,
             keterangan_kejadian=description,
