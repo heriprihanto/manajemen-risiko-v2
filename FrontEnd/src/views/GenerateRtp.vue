@@ -355,9 +355,9 @@ async function generateDocx() {
 
 <style scoped>
 .generate-rtp-page {
-  padding: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
 /* Page Header */
@@ -365,7 +365,6 @@ async function generateDocx() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
   gap: 1rem;
   flex-wrap: wrap;
 }

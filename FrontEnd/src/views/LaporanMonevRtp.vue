@@ -78,9 +78,12 @@ async function exportExcel() {
         <router-link to="/realisasi-rtp" class="back-link">
           <Button icon="pi pi-arrow-left" text rounded severity="secondary" v-tooltip="'Kembali ke Realisasi RTP'" />
         </router-link>
+        <div class="header-icon-box">
+          <i class="pi pi-file-check"></i>
+        </div>
         <div>
-          <h2 class="title">Laporan Monitoring & Evaluasi RTP</h2>
-          <p class="subtitle">
+          <h1 class="page-title">Laporan Monitoring &amp; Evaluasi RTP</h1>
+          <p class="page-desc">
             Format Resmi Monev Rencana Tindak Pengendalian Risiko &middot; {{ opdName }} &middot; Tahun {{ ctx.tahun }}
           </p>
         </div>
@@ -142,36 +145,46 @@ async function exportExcel() {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
-  background: #ffffff;
-  padding: 1rem 1.25rem;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
-.title {
-  font-size: 1.25rem;
+.header-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #1e293b;
-  margin: 0;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
 }
 
-.subtitle {
-  font-size: 0.85rem;
+.page-desc {
   color: #64748b;
-  margin: 0.2rem 0 0 0;
+  font-size: 0.875rem;
+  margin: 0;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 

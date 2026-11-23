@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useContextStore } from '@/stores/context'
 import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
@@ -8,6 +9,7 @@ import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import Form3 from '@/views/Form3.vue'
 
+const ctx = useContextStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -43,6 +45,14 @@ function onTabChange(val) {
           <p class="page-desc">
             Identifikasi risiko strategis Pemda, risiko strategis OPD, dan risiko operasional OPD
           </p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="ctx-chip" title="Konteks Penilaian Aktif">
+          <i class="pi pi-building"></i>
+          <span>{{ ctx.opd?.nama_pd || 'Semua OPD' }}</span>
+          <span class="chip-dot">•</span>
+          <span>Tahun {{ ctx.tahun }}</span>
         </div>
       </div>
     </div>
@@ -89,16 +99,17 @@ function onTabChange(val) {
 
 <style scoped>
 .identifikasi-container {
-  padding: 1.25rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.25rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .header-left {
@@ -108,30 +119,56 @@ function onTabChange(val) {
 }
 
 .header-icon-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.35rem;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
 }
 
 .page-title {
-  font-size: 1.35rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 0.2rem 0;
+  margin: 0 0 0.25rem 0;
   letter-spacing: -0.02em;
 }
 
 .page-desc {
   color: #64748b;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ctx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.chip-dot {
+  color: #94a3b8;
 }
 
 .tabs-card {

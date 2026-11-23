@@ -123,7 +123,7 @@ const navGroups = [
     label: 'Monev RTP',
     items: [
       ['realisasi-rtp', 'Realisasi RTP', 'pi-check-circle'],
-      ['laporan-monev-rtp', 'Laporan Monev RTP', 'pi-file-check'],
+      //['laporan-monev-rtp', 'Laporan Monev RTP', 'pi-file-check'],
       ['realisasi-infokom', 'Realisasi Infokom', 'pi-comments'],
       ['form10', 'Kejadian Risiko', 'pi-history'],
       ['approval-kejadian', 'Approval Kejadian', 'pi-check-circle'],

@@ -239,7 +239,7 @@ watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
 .form4-page {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1.25rem;
 }
 
 /* Page Header (Style Realisasi RTP) */

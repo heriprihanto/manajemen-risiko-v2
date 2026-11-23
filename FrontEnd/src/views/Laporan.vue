@@ -132,7 +132,30 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="no-print toolbar">
+  <div class="laporan-page">
+    <div class="page-header no-print">
+      <div class="header-left">
+        <div class="header-icon-box">
+          <i class="pi pi-print"></i>
+        </div>
+        <div>
+          <h1 class="page-title">Cetak Laporan Manajemen Risiko</h1>
+          <p class="page-desc">
+            Pratinjau cetak formulir resmi dan ekspor berkas penilaian risiko Daerah Kota Tegal &middot; {{ opdName }} &middot; Tahun {{ ctx.tahun }}
+          </p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="ctx-chip" title="Konteks Penilaian Aktif">
+          <i class="pi pi-building"></i>
+          <span>{{ opdName }}</span>
+          <span class="chip-dot">•</span>
+          <span>Tahun {{ ctx.tahun }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="no-print toolbar">
     <MultiSelect
       v-model="selected"
       :options="sections"
@@ -208,4 +231,81 @@ onMounted(async () => {
     <Form10 v-if="isSel('f10') && d.f10" :data="d.f10" :opd-name="opdName" :tahun="ctx.tahun" />
     <MonevRtp v-if="isSel('monev_rtp') && d.monev_rtp" :data="d.monev_rtp" :opd-name="opdName" :tahun="ctx.tahun" />
   </div>
+  </div>
 </template>
+
+<style scoped>
+.laporan-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Page Header (Style Realisasi RTP) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.page-desc {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ctx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.chip-dot {
+  color: #94a3b8;
+}
+</style>

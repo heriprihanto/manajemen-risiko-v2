@@ -1,5 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
+import Button from 'primevue/button'
 import api from '@/api'
 import { useContextStore } from '@/stores/context'
 import { getMatrixScore, getToleranceBorderStyles } from '@/utils/matriks'
@@ -43,10 +44,43 @@ watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
 </script>
 
 <template>
-  <div class="page-card">
-    <h2>Selera Risiko</h2>
-    <p>Selera risiko adalah ambang batas besaran level risiko yang berada dalam area penerimaan risiko dan tidak perlu dilakukan kegiatan pengendalian.</p>
-    <p class="muted">Ketetapan berlaku untuk OPD dan tahun yang dipilih. Pengelola mencatat keputusan Pemilik Risiko beserta dasar pertimbangannya.</p>
+  <div class="selera-risiko-page">
+    <!-- Header Section (Style Realisasi RTP) -->
+    <div class="page-header">
+      <div class="header-left">
+        <div class="header-icon-box">
+          <i class="pi pi-sliders-h"></i>
+        </div>
+        <div>
+          <h1 class="page-title">Selera Risiko</h1>
+          <p class="page-desc">
+            Penetapan ambang batas toleransi besaran level risiko yang berada dalam area penerimaan risiko
+          </p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="ctx-chip" title="Konteks Penilaian Aktif">
+          <i class="pi pi-building"></i>
+          <span>{{ ctx.opd?.nama_pd || 'Semua OPD' }}</span>
+          <span class="chip-dot">•</span>
+          <span>Tahun {{ ctx.tahun }}</span>
+        </div>
+        <Button
+          label="Segarkan"
+          icon="pi pi-refresh"
+          severity="secondary"
+          variant="outlined"
+          :loading="loading"
+          @click="load"
+        />
+      </div>
+    </div>
+
+    <div class="page-card">
+      <p class="muted" style="margin-top: 0">
+        Selera risiko adalah ambang batas besaran level risiko yang berada dalam area penerimaan risiko dan tidak perlu dilakukan kegiatan pengendalian.
+        Ketetapan berlaku untuk OPD dan tahun yang dipilih. Pengelola mencatat keputusan Pemilik Risiko beserta dasar pertimbangannya.
+      </p>
     <p v-if="loading">Memuat ketetapan…</p>
     <p v-if="error" role="alert" class="error">{{ error }} <button v-if="!data" @click="load">Coba lagi</button></p>
     <p v-if="success" role="status" class="success">{{ success }}</p>
@@ -87,9 +121,84 @@ watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
         <tr v-if="!history.length"><td colspan="6">Belum ada ketetapan untuk cakupan ini.</td></tr>
       </tbody></table></div>
     </template>
+    </div>
   </div>
 </template>
 <style scoped>
+.selera-risiko-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Page Header (Style Realisasi RTP) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.page-desc {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ctx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.chip-dot {
+  color: #94a3b8;
+}
+
 h2 { margin-top: 0; } label { display:block; font-weight:600; margin: 14px 0 6px; }
 input, select, textarea { width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font:inherit; box-sizing:border-box; }
 fieldset { border:0; padding:0; min-width:0; } .layout { display:grid; grid-template-columns:1fr 1fr; gap:32px; }

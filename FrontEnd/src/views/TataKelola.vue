@@ -81,8 +81,39 @@ const reportDecision = r => other(r) && (r.cakupan === 'pemda' ? has('upr_pemda'
 
 <template>
   <section class="governance">
-    <div class="intro"><h2>Tata Kelola Risiko</h2><p>Kelola keputusan, pelaksanaan pengendalian, dan laporan {{ ctx.tahun }} untuk {{ ctx.opd?.nama_pd }}.</p>
-      <small>Peran aktif: {{ roles.join(', ') || (canWrite ? 'Pengelola OPD (pengajuan)' : 'Baca saja') }}. Persetujuan memerlukan penugasan dan pengguna yang berbeda.</small>
+    <!-- Header Section (Style Realisasi RTP) -->
+    <div class="page-header">
+      <div class="header-left">
+        <div class="header-icon-box">
+          <i class="pi pi-sitemap"></i>
+        </div>
+        <div>
+          <h1 class="page-title">Tata Kelola Risiko</h1>
+          <p class="page-desc">
+            Pemantauan, kebijakan penilaian, penugasan pengelola, dan laporan berkala tata kelola risiko &middot; {{ ctx.opd?.nama_pd }}
+          </p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="ctx-chip" title="Konteks Penilaian Aktif">
+          <i class="pi pi-building"></i>
+          <span>{{ ctx.opd?.nama_pd || 'Semua OPD' }}</span>
+          <span class="chip-dot">•</span>
+          <span>Tahun {{ ctx.tahun }}</span>
+        </div>
+        <Button
+          label="Segarkan"
+          icon="pi pi-refresh"
+          severity="secondary"
+          variant="outlined"
+          :loading="loading"
+          @click="load"
+        />
+      </div>
+    </div>
+
+    <div class="role-badge-row">
+      <small>Peran aktif: <strong>{{ roles.join(', ') || (canWrite ? 'Pengelola OPD (pengajuan)' : 'Baca saja') }}</strong>. Persetujuan memerlukan penugasan dan pengguna yang berbeda.</small>
     </div>
     <nav class="tabs no-print" aria-label="Modul tata kelola"><button v-for="t in tabs" :key="t.id" :class="{active:tab===t.id}" @click="tab=t.id">{{ t.label }}</button></nav>
     <p v-if="error" role="alert" class="error">{{ error }} <Button label="Coba lagi" text @click="load" /></p>
@@ -131,5 +162,83 @@ const reportDecision = r => other(r) && (r.cakupan === 'pemda' ? has('upr_pemda'
   </section>
 </template>
 <style scoped>
-.intro{margin-bottom:18px}.intro h2{margin-top:0}.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid #cbd5e1;margin-bottom:22px;padding-bottom:10px}.tabs button{padding:10px 14px;border:1px solid #cbd5e1;border-radius:6px;background:white;color:#334155;cursor:pointer}.tabs .active{background:#075985;color:white;border-color:#075985}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.metrics div{background:#f0f9ff;border:1px solid #bae6fd;padding:18px;border-radius:8px}.metrics strong{display:block;font-size:2rem;color:#075985}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;border:1px solid #e2e8f0;text-align:left}th{background:#f8fafc;color:#1e293b;font-weight:600}tbody tr:nth-child(even){background:#f8fafc}tbody tr:hover{background:#f1f5f9}small{display:block;color:#475569;margin-top:5px}.page-card{margin-bottom:14px}.status{font-size:.85rem;color:#475569}.notice{background:#fff7ed;padding:14px;border-left:4px solid #ea580c}.error{color:#b91c1c}
+.governance {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Page Header (Style Realisasi RTP) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.page-desc {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ctx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.chip-dot {
+  color: #94a3b8;
+}
+
+.role-badge-row {
+  margin-top: -0.5rem;
+}
+
+.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid #cbd5e1;padding-bottom:10px}.tabs button{padding:10px 14px;border:1px solid #cbd5e1;border-radius:6px;background:white;color:#334155;cursor:pointer}.tabs .active{background:#075985;color:white;border-color:#075985}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.metrics div{background:#f0f9ff;border:1px solid #bae6fd;padding:18px;border-radius:8px}.metrics strong{display:block;font-size:2rem;color:#075985}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;border:1px solid #e2e8f0;text-align:left}th{background:#f8fafc;color:#1e293b;font-weight:600}tbody tr:nth-child(even){background:#f8fafc}tbody tr:hover{background:#f1f5f9}small{display:block;color:#475569;margin-top:5px}.page-card{margin-bottom:14px}.status{font-size:.85rem;color:#475569}.notice{background:#fff7ed;padding:14px;border-left:4px solid #ea580c}.error{color:#b91c1c}
 </style>

@@ -298,62 +298,58 @@ const hasFilteredResults = computed(() => {
 
 <style scoped>
 .form5-page {
-  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 1.5rem;
-  margin-bottom: 1.25rem;
-  background: #ffffff;
-  padding: 1.5rem 1.75rem;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .header-left {
   display: flex;
-  gap: 1.25rem;
-  align-items: flex-start;
+  align-items: center;
+  gap: 1rem;
 }
 
 .header-icon-box {
   width: 52px;
   height: 52px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   flex-shrink: 0;
-  box-shadow: 0 4px 10px rgba(217, 119, 6, 0.25);
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
 }
 
 .page-title {
-  font-size: 1.45rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 0.35rem 0;
-  line-height: 1.25;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
 }
 
 .page-desc {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: #64748b;
   margin: 0;
-  line-height: 1.45;
 }
 
 .header-actions {
   display: flex;
   gap: 0.75rem;
-  flex-shrink: 0;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .alert-box {

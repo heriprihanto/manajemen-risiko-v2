@@ -561,3 +561,6 @@ Revisi Halaman :
 - Kelola Kuesioner CEE
 - Pengaturan Aplikasi
 header judul  seperti pada halaman Realisasi Rencana Tindak Pengendalian (RTP) 
+
+Cek Semua Halaman
+Pastikan konsistensi margin dan posisi objek

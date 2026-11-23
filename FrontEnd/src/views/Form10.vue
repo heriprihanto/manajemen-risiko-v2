@@ -893,6 +893,9 @@ function remove(ev) {
 
 <style scoped>
 .monitoring-event-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
   padding-bottom: 2rem;
 }
 
@@ -901,7 +904,6 @@ function remove(ev) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1rem;
 }

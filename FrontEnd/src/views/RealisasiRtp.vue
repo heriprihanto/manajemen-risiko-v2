@@ -941,10 +941,9 @@ watch([() => ctx.opdId, () => ctx.tahun], loadData, { immediate: true })
 
 <style scoped>
 .realisasi-rtp-page {
-  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 /* Page Header */
