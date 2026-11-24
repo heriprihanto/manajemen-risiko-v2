@@ -85,6 +85,7 @@ const navGroups = [
     items: [
       ['laporan', 'Cetak Laporan', 'pi-print'],
       ['generate-rtp', 'Generate Dokumen RTP', 'pi-file-word'],
+      ['laporan-monev-rtp', 'Laporan Monev RTP', 'pi-file-check'],
       ['rekap-kuesioner', 'Rekapitulasi Kuesioner', 'pi-chart-pie'],
       ['rekap-konteks', 'Rekapitulasi Konteks', 'pi-sitemap'],
       ['rekap-identifikasi', 'Rekapitulasi Kategori Risiko', 'pi-tags'],
@@ -123,7 +124,7 @@ const navGroups = [
     label: 'Monev RTP',
     items: [
       ['realisasi-rtp', 'Realisasi RTP', 'pi-check-circle'],
-      //['laporan-monev-rtp', 'Laporan Monev RTP', 'pi-file-check'],
+      
       ['realisasi-infokom', 'Realisasi Infokom', 'pi-comments'],
       ['form10', 'Kejadian Risiko', 'pi-history'],
       ['approval-kejadian', 'Approval Kejadian', 'pi-check-circle'],

@@ -25,18 +25,20 @@ def export_excel(
     opd_id: int,
     tahun: int,
     forms: str | None = None,
+    periode: str | None = None,
     session: Session = Depends(get_session),
 ):
     """Unduh laporan sebagai workbook: satu sheet per form.
 
     `forms` = daftar kunci bagian dipisah koma (mis. `f3a,f3b`); kosong = semua.
+    `periode` = periode untuk laporan monev ('tw1', 'tw2', 'tw3', 'tw4', 'tahunan').
     """
     keys = [k.strip() for k in (forms or "").split(",") if k.strip()]
     unknown = [k for k in keys if k not in SECTION_KEYS]
     if unknown:
         raise HTTPException(400, f"Form tidak dikenal: {', '.join(unknown)}")
 
-    buf = build_workbook(session, opd_id, tahun, keys or None)
+    buf = build_workbook(session, opd_id, tahun, keys or None, periode=periode)
     nama = f"Laporan Manajemen Risiko {tahun}.xlsx"
     return StreamingResponse(
         buf,

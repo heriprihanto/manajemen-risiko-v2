@@ -9,6 +9,7 @@ import Column from 'primevue/column'
 import api from '@/api'
 import { useContextStore } from '@/stores/context'
 import AppLoader from '@/components/AppLoader.vue'
+import { formatDate } from '@/utils/date'
 import {
   getMatrixScore,
   getMatrixLevel,
@@ -156,6 +157,22 @@ const maxKategoriCount = computed(() => {
   return Math.max(...sortedKategori.value.map((k) => k.jumlah), 1)
 })
 
+const peringatanRtp = computed(() => {
+  return data.value?.peringatan_rtp || {
+    akan_jatuh_tempo: [],
+    lewat_jatuh_tempo: [],
+    total_akan_jatuh_tempo: 0,
+    total_lewat_jatuh_tempo: 0,
+  }
+})
+
+const hasWarnings = computed(() => {
+  return (
+    peringatanRtp.value.total_lewat_jatuh_tempo > 0 ||
+    peringatanRtp.value.total_akan_jatuh_tempo > 0
+  )
+})
+
 watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
 </script>
 
@@ -181,6 +198,22 @@ watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
           <span><i class="pi pi-calendar"></i> Tahun Penilaian: <strong>{{ ctx.tahun }}</strong></span>
           <span class="dot-sep">•</span>
           <span><i class="pi pi-clock"></i> Status: <Tag severity="success" value="Aktif" /></span>
+          <template v-if="peringatanRtp.total_lewat_jatuh_tempo > 0">
+            <span class="dot-sep">•</span>
+            <Tag
+              severity="danger"
+              :value="`${peringatanRtp.total_lewat_jatuh_tempo} Lewat Jatuh Tempo`"
+              icon="pi pi-exclamation-triangle"
+            />
+          </template>
+          <template v-if="peringatanRtp.total_akan_jatuh_tempo > 0">
+            <span class="dot-sep">•</span>
+            <Tag
+              severity="warn"
+              :value="`${peringatanRtp.total_akan_jatuh_tempo} Jatuh Tempo ≤ 30 Hari`"
+              icon="pi pi-clock"
+            />
+          </template>
         </div>
       </div>
       <div class="exec-actions">
@@ -198,6 +231,171 @@ watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
           size="small"
           @click="navigateTo('/rtp')"
         />
+      </div>
+    </div>
+
+    <!-- Peringatan Jatuh Tempo RTP (Overdue & Due Soon) -->
+    <div v-if="hasWarnings" class="peringatan-section">
+      <!-- 1. Peringatan Lewat Jatuh Tempo -->
+      <div v-if="peringatanRtp.total_lewat_jatuh_tempo > 0" class="peringatan-card card-danger">
+        <div class="peringatan-header">
+          <div class="peringatan-title-wrap">
+            <div class="peringatan-icon-box danger-icon-box">
+              <i class="pi pi-exclamation-triangle"></i>
+            </div>
+            <div>
+              <h3 class="peringatan-title text-rose-700">
+                Peringatan: {{ peringatanRtp.total_lewat_jatuh_tempo }} Rencana Tindak Pengendalian (RTP) Sudah Lewat Jatuh Tempo
+              </h3>
+              <p class="peringatan-desc">
+                Tindakan pengendalian di bawah ini telah melewati batas waktu target dan belum berstatus selesai. Segera lakukan tindak lanjut atau catat realisasi.
+              </p>
+            </div>
+          </div>
+          <Button
+            label="Input Realisasi RTP"
+            icon="pi pi-arrow-right"
+            severity="danger"
+            size="small"
+            @click="navigateTo('/realisasi-rtp')"
+          />
+        </div>
+
+        <div class="peringatan-table-wrap">
+          <table class="peringatan-table">
+            <thead>
+              <tr>
+                <th style="width: 45px; text-align: center">No</th>
+                <th style="width: 140px">Kode</th>
+                <th>Uraian Risiko &amp; Rencana Tindak Pengendalian</th>
+                <th style="width: 160px">Target Waktu</th>
+                <th style="width: 180px">Status Jatuh Tempo</th>
+                <th style="width: 160px">Penanggung Jawab</th>
+                <th style="width: 110px; text-align: center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(it, idx) in peringatanRtp.lewat_jatuh_tempo" :key="it.id || idx">
+                <td class="text-center font-semibold text-slate-500">{{ idx + 1 }}</td>
+                <td>
+                  <span class="kode-chip">{{ it.kode_risiko }}</span>
+                  <div class="text-xs text-slate-500 mt-1">{{ it.jenis_label }}</div>
+                </td>
+                <td>
+                  <div class="font-medium text-slate-900 mb-1">{{ it.uraian_risiko }}</div>
+                  <div class="rtp-text">
+                    <i class="pi pi-shield mr-1 text-emerald-600"></i>
+                    <strong>RTP:</strong> {{ it.rencana_tindak }}
+                  </div>
+                </td>
+                <td>
+                  <div class="text-slate-800 font-semibold">{{ it.target_waktu }}</div>
+                  <div class="text-xs text-slate-500">Tenggat: {{ formatDate(it.jatuh_tempo) }}</div>
+                </td>
+                <td>
+                  <span class="badge-overdue">
+                    <i class="pi pi-times-circle mr-1"></i>
+                    Lewat {{ Math.abs(it.sisa_hari) }} hari
+                  </span>
+                </td>
+                <td>
+                  <span class="text-slate-700 text-sm">{{ it.penanggung_jawab || '—' }}</span>
+                </td>
+                <td class="text-center">
+                  <Button
+                    label="Realisasi"
+                    icon="pi pi-pencil"
+                    severity="danger"
+                    size="small"
+                    outlined
+                    @click="navigateTo('/realisasi-rtp')"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 2. Peringatan Akan Jatuh Tempo dalam 30 Hari -->
+      <div v-if="peringatanRtp.total_akan_jatuh_tempo > 0" class="peringatan-card card-warning">
+        <div class="peringatan-header">
+          <div class="peringatan-title-wrap">
+            <div class="peringatan-icon-box warning-icon-box">
+              <i class="pi pi-clock"></i>
+            </div>
+            <div>
+              <h3 class="peringatan-title text-amber-700">
+                Peringatan: {{ peringatanRtp.total_akan_jatuh_tempo }} Rencana Tindak Pengendalian (RTP) Akan Jatuh Tempo dalam 30 Hari Kedepan
+              </h3>
+              <p class="peringatan-desc">
+                Tindakan pengendalian di bawah ini mendekati tenggat target penyelesaian. Pastikan koordinasi dan pelaksanaan mitigasi berjalan sesuai jadwal.
+              </p>
+            </div>
+          </div>
+          <Button
+            label="Input Realisasi RTP"
+            icon="pi pi-arrow-right"
+            severity="warn"
+            size="small"
+            @click="navigateTo('/realisasi-rtp')"
+          />
+        </div>
+
+        <div class="peringatan-table-wrap">
+          <table class="peringatan-table">
+            <thead>
+              <tr>
+                <th style="width: 45px; text-align: center">No</th>
+                <th style="width: 140px">Kode</th>
+                <th>Uraian Risiko &amp; Rencana Tindak Pengendalian</th>
+                <th style="width: 160px">Target Waktu</th>
+                <th style="width: 180px">Status Jatuh Tempo</th>
+                <th style="width: 160px">Penanggung Jawab</th>
+                <th style="width: 110px; text-align: center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(it, idx) in peringatanRtp.akan_jatuh_tempo" :key="it.id || idx">
+                <td class="text-center font-semibold text-slate-500">{{ idx + 1 }}</td>
+                <td>
+                  <span class="kode-chip">{{ it.kode_risiko }}</span>
+                  <div class="text-xs text-slate-500 mt-1">{{ it.jenis_label }}</div>
+                </td>
+                <td>
+                  <div class="font-medium text-slate-900 mb-1">{{ it.uraian_risiko }}</div>
+                  <div class="rtp-text">
+                    <i class="pi pi-shield mr-1 text-emerald-600"></i>
+                    <strong>RTP:</strong> {{ it.rencana_tindak }}
+                  </div>
+                </td>
+                <td>
+                  <div class="text-slate-800 font-semibold">{{ it.target_waktu }}</div>
+                  <div class="text-xs text-slate-500">Tenggat: {{ formatDate(it.jatuh_tempo) }}</div>
+                </td>
+                <td>
+                  <span class="badge-due-soon">
+                    <i class="pi pi-clock mr-1"></i>
+                    Sisa {{ it.sisa_hari }} hari lagi
+                  </span>
+                </td>
+                <td>
+                  <span class="text-slate-700 text-sm">{{ it.penanggung_jawab || '—' }}</span>
+                </td>
+                <td class="text-center">
+                  <Button
+                    label="Realisasi"
+                    icon="pi pi-pencil"
+                    severity="warn"
+                    size="small"
+                    outlined
+                    @click="navigateTo('/realisasi-rtp')"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -262,6 +460,14 @@ watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
           </span>
           <span v-else class="text-success font-semibold">
             <i class="pi pi-check"></i> Seluruh prioritas ber-RTP
+          </span>
+        </div>
+        <div v-if="peringatanRtp.total_lewat_jatuh_tempo > 0 || peringatanRtp.total_akan_jatuh_tempo > 0" class="kpi-warning-pills">
+          <span v-if="peringatanRtp.total_lewat_jatuh_tempo > 0" class="pill-mini pill-mini-danger">
+            <i class="pi pi-exclamation-triangle"></i> {{ peringatanRtp.total_lewat_jatuh_tempo }} Lewat Tempo
+          </span>
+          <span v-if="peringatanRtp.total_akan_jatuh_tempo > 0" class="pill-mini pill-mini-warning">
+            <i class="pi pi-clock"></i> {{ peringatanRtp.total_akan_jatuh_tempo }} Segera (≤30h)
           </span>
         </div>
       </div>
@@ -1639,5 +1845,190 @@ watch([() => ctx.opdId, () => ctx.tahun], load, { immediate: true })
   .cell-count {
     font-size: 1.15rem;
   }
+}
+
+/* Peringatan Jatuh Tempo Section */
+.peringatan-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.peringatan-card {
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.card-danger {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-left: 5px solid #dc2626;
+}
+
+.card-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 5px solid #d97706;
+}
+
+.peringatan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.peringatan-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.peringatan-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.danger-icon-box {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.warning-icon-box {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.peringatan-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.2rem 0;
+}
+
+.peringatan-desc {
+  font-size: 0.825rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.peringatan-table-wrap {
+  overflow-x: auto;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.peringatan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.peringatan-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.peringatan-table td {
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.peringatan-table tr:last-child td {
+  border-bottom: none;
+}
+
+.peringatan-table tr:hover td {
+  background: #fafaf9;
+}
+
+.kode-chip {
+  display: inline-block;
+  padding: 2px 7px;
+  background: #e0f2fe;
+  color: #0369a1;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.775rem;
+}
+
+.rtp-text {
+  font-size: 0.825rem;
+  color: #334155;
+  background: #f8fafc;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-overdue {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.775rem;
+  white-space: nowrap;
+}
+
+.badge-due-soon {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.775rem;
+  white-space: nowrap;
+}
+
+.kpi-warning-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.pill-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.pill-mini-danger {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.pill-mini-warning {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
 }
 </style>

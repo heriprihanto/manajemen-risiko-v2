@@ -560,14 +560,20 @@ def build_f10(ctx: Ctx, wb: Workbook):
     ctx.sign(sh, f"Kota Tegal, {ctx.tahun}")
 
 
-def build_monev_rtp(ctx: Ctx, wb: Workbook):
-    res = risiko.list_realisasi(ctx.opd_id, ctx.tahun, ctx.s)
+def build_monev_rtp(ctx: Ctx, wb: Workbook, periode: str | None = None):
+    res = risiko.list_realisasi(ctx.opd_id, ctx.tahun, periode=periode, session=ctx.s)
     all_items = res.get("items", []) if isinstance(res, dict) else res
     items = [it for it in all_items if it.get("source_type") == "risiko"]
 
-    sh = Sheet(wb.create_sheet("Monev RTP"), [6, 40, 40, 22, 22, 38, 32])
-    ctx.head(sh, "MONITORING DAN EVALUASI RENCANA TINDAK PENGENDALIAN RISIKO",
-             f"{ctx.opd_name.upper()} TAHUN {ctx.tahun}")
+    p_label = res.get("periode_label", "Tahunan") if isinstance(res, dict) else "Tahunan"
+    sub_title = f"{ctx.opd_name.upper()} TAHUN {ctx.tahun}"
+    sheet_name = "Monev RTP"
+    if periode and str(periode).strip().lower() != "tahunan":
+        sub_title = f"{ctx.opd_name.upper()} PERIODE {p_label.upper()} TAHUN {ctx.tahun}"
+        sheet_name = f"Monev RTP {p_label}"
+
+    sh = Sheet(wb.create_sheet(sheet_name), [6, 40, 40, 22, 22, 38, 32])
+    ctx.head(sh, "MONITORING DAN EVALUASI RENCANA TINDAK PENGENDALIAN RISIKO", sub_title)
     sh.header(["No", "Risiko yang Terindentifikasi", "Rencana Tindak Pengendalian (RTP)",
                "Rencana Pelaksanaan RTP", "Realisasi Pelaksanaan RTP",
                "Bukti Dokumen", "Keterjadian"])
@@ -643,14 +649,18 @@ BUILDERS = {
 
 
 def build_workbook(session: Session, opd_id: int, tahun: int,
-                   keys: list[str] | None = None) -> BytesIO:
+                   keys: list[str] | None = None,
+                   periode: str | None = None) -> BytesIO:
     """Susun workbook berisi sheet untuk `keys` (default: seluruh form)."""
     wanted = [k for k in SECTION_KEYS if not keys or k in keys]
     ctx = Ctx(session, opd_id, tahun)
     wb = Workbook()
     wb.remove(wb.active)  # sheet bawaan tidak dipakai
     for key in wanted:
-        BUILDERS[key](ctx, wb)
+        if key == "monev_rtp":
+            build_monev_rtp(ctx, wb, periode=periode)
+        else:
+            BUILDERS[key](ctx, wb)
     if not wb.sheetnames:
         wb.create_sheet("Kosong")
     buf = BytesIO()

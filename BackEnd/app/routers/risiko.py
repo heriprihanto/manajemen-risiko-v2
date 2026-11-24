@@ -769,9 +769,95 @@ def save_treated(
 
 
 # ------------------------------ Realisasi RTP ---------------------------------
+def get_periode_bounds(tahun: int, periode: str | None) -> tuple[date, date, str]:
+    p = (periode or "").strip().lower()
+    if p in ("tw1", "triwulan 1", "triwulan i", "tw 1", "1"):
+        return date(tahun, 1, 1), date(tahun, 3, 31), "Triwulan I"
+    elif p in ("tw2", "triwulan 2", "triwulan ii", "tw 2", "2"):
+        return date(tahun, 4, 1), date(tahun, 6, 30), "Triwulan II"
+    elif p in ("tw3", "triwulan 3", "triwulan iii", "tw 3", "3"):
+        return date(tahun, 7, 1), date(tahun, 9, 30), "Triwulan III"
+    elif p in ("tw4", "triwulan 4", "triwulan iv", "tw 4", "4"):
+        return date(tahun, 10, 1), date(tahun, 12, 31), "Triwulan IV"
+    else:
+        return date(tahun, 1, 1), date(tahun, 12, 31), "Tahunan"
+
+
+def parse_date_safe(val: Any) -> date | None:
+    if not val:
+        return None
+    if isinstance(val, date):
+        return val
+    s = str(val).strip()
+    m = re.search(r"(\d{4})-(\d{2})-(\d{2})", s)
+    if m:
+        try:
+            return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            return None
+    return None
+
+
+def parse_date_range(rel: RealisasiRtp | None, rt: Any = None) -> tuple[date | None, date | None]:
+    if not rel and not rt:
+        return None, None
+    d_start = getattr(rel, "tanggal_mulai", None)
+    d_end = getattr(rel, "tanggal_selesai", None)
+    tr = getattr(rel, "tanggal_realisasi", None)
+    if not d_start and not d_end and tr:
+        matches = re.findall(r"\d{4}-\d{2}-\d{2}", str(tr))
+        if len(matches) >= 2:
+            d_start = parse_date_safe(matches[0])
+            d_end = parse_date_safe(matches[1])
+        elif len(matches) == 1:
+            d_start = parse_date_safe(matches[0])
+            d_end = d_start
+    if not d_start and not d_end and rt and getattr(rt, "realisasi_waktu", None):
+        rw = str(rt.realisasi_waktu).strip()
+        matches = re.findall(r"\d{4}-\d{2}-\d{2}", rw)
+        if len(matches) >= 2:
+            d_start = parse_date_safe(matches[0])
+            d_end = parse_date_safe(matches[1])
+        elif len(matches) == 1:
+            d_start = parse_date_safe(matches[0])
+            d_end = d_start
+    if d_start and not d_end:
+        d_end = d_start
+    elif d_end and not d_start:
+        d_start = d_end
+    return d_start, d_end
+
+
+def is_date_range_overlap(d_start: date | None, d_end: date | None, q_start: date, q_end: date) -> bool:
+    if not d_start and not d_end:
+        return False
+    s = d_start or d_end
+    e = d_end or d_start
+    return s <= q_end and e >= q_start
+
+
+def is_event_in_range(ev: MonitoringRiskEvent, q_start: date, q_end: date) -> bool:
+    d = ev.tanggal_terjadi or parse_date_safe(ev.waktu_kejadian)
+    if d:
+        return q_start <= d <= q_end
+    return False
+
+
 @router.get("/realisasi")
-def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_session)):
-    """Daftar rencana tindak pengendalian beserta status, tanggal, dan bukti dukung realisasinya."""
+def list_realisasi(
+    opd_id: int,
+    tahun: int,
+    periode: str | None = None,
+    include_all: bool = False,
+    session: Session = Depends(get_session),
+):
+    """Daftar rencana tindak pengendalian beserta status, tanggal, dan bukti dukung realisasinya.
+    
+    Jika `periode` ditentukan ('tw1', 'tw2', 'tw3', 'tw4', atau 'tahunan'):
+    - Laporan Triwulanan hanya menampilkan Realisasi RTP yang dilaksanakan dan Kejadian pada triwulan tersebut.
+    - Laporan Tahunan menampilkan semua Realisasi RTP yang dilaksanakan dan kejadian pada tahun tersebut.
+    - Parameter `include_all=True` menampilkan seluruh rencana RTP tahun berjalan tanpa memfilter status pelaksanaan.
+    """
     rows = list_risiko(opd_id, tahun, None, session)
 
     saved_rtp_records = session.exec(
@@ -800,6 +886,16 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
     for ev in saved_events:
         events_map.setdefault(ev.risiko_id, []).append(ev)
 
+    # Setup batas tanggal periode
+    has_period_filter = bool(periode and periode.strip().lower() != "all")
+    if has_period_filter:
+        q_start, q_end, p_label = get_periode_bounds(tahun, periode)
+        p_clean = (periode or "").strip().lower()
+        is_tw = p_clean in ("tw1", "tw2", "tw3", "tw4", "1", "2", "3", "4", "triwulan 1", "triwulan 2", "triwulan 3", "triwulan 4", "triwulan i", "triwulan ii", "triwulan iii", "triwulan iv")
+    else:
+        q_start, q_end, p_label = date(tahun, 1, 1), date(tahun, 12, 31), "Tahunan"
+        is_tw = False
+
     items = []
     total_rtp = 0
     selesai_cnt = 0
@@ -814,25 +910,57 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
         if not is_prioritas and not rt:
             continue
 
-        total_rtp += 1
         rel = realisasi_map.get(r["id"])
         tr = treated_map.get(r["id"])
+        r_events = events_map.get(r["id"], [])
 
-        status_realisasi = rel.status_realisasi if rel and rel.status_realisasi else "belum"
-        if status_realisasi == "selesai":
-            selesai_cnt += 1
-        elif status_realisasi == "proses":
-            proses_cnt += 1
+        # Filter kejadian pada periode
+        if has_period_filter:
+            matching_events = [e for e in r_events if is_event_in_range(e, q_start, q_end)]
         else:
-            belum_cnt += 1
+            matching_events = r_events
 
-        items.append({
-            **r,
-            "source_type": "risiko",
-            "risiko_id": r["id"],
-            "rtp_cee_id": None,
-            "rtp": rt.model_dump() if rt else None,
-            "realisasi": {
+        # Cek apakah realisasi RTP dilaksanakan pada periode ini
+        d_start, d_end = parse_date_range(rel, rt)
+        raw_status = rel.status_realisasi if rel and rel.status_realisasi else "belum"
+
+        is_realisasi_in_periode = False
+        if raw_status in ("selesai", "proses"):
+            if is_date_range_overlap(d_start, d_end, q_start, q_end):
+                is_realisasi_in_periode = True
+            elif not d_start and not d_end:
+                tr_text = f"{rel.tanggal_realisasi if rel else ''} {getattr(rt, 'realisasi_waktu', '') or ''}".lower()
+                if is_tw:
+                    if ("tw1" in p_clean or "1" in p_clean or "i" in p_clean) and any(k in tr_text for k in ("tw1", "tw 1", "triwulan 1", "triwulan i")):
+                        is_realisasi_in_periode = True
+                    elif ("tw2" in p_clean or "2" in p_clean or "ii" in p_clean) and any(k in tr_text for k in ("tw2", "tw 2", "triwulan 2", "triwulan ii")):
+                        is_realisasi_in_periode = True
+                    elif ("tw3" in p_clean or "3" in p_clean or "iii" in p_clean) and any(k in tr_text for k in ("tw3", "tw 3", "triwulan 3", "triwulan iii")):
+                        is_realisasi_in_periode = True
+                    elif ("tw4" in p_clean or "4" in p_clean or "iv" in p_clean) and any(k in tr_text for k in ("tw4", "tw 4", "triwulan 4", "triwulan iv")):
+                        is_realisasi_in_periode = True
+                else:
+                    is_realisasi_in_periode = True
+
+        # Aturan Filter:
+        # Jika ada filter periode dan bukan include_all:
+        # Hanya tampilkan jika Realisasi RTP dilaksanakan pada periode tersebut ATAU ada Kejadian pada periode tersebut!
+        if has_period_filter and not include_all:
+            if not (is_realisasi_in_periode or len(matching_events) > 0):
+                continue
+
+        total_rtp += 1
+
+        if is_realisasi_in_periode:
+            status_realisasi = raw_status
+            if status_realisasi == "selesai":
+                selesai_cnt += 1
+            elif status_realisasi == "proses":
+                proses_cnt += 1
+            else:
+                belum_cnt += 1
+
+            realisasi_payload = {
                 "id": rel.id if rel else None,
                 "status_realisasi": status_realisasi,
                 "tanggal_realisasi": rel.tanggal_realisasi.isoformat() if rel and rel.tanggal_realisasi else None,
@@ -845,6 +973,7 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
                 "bukti_link": rel.bukti_link if rel else None,
                 "updated_at": rel.updated_at.isoformat() if rel and rel.updated_at else None,
                 "updated_by": rel.updated_by if rel else None,
+                "dilaksanakan_pada_periode": True,
             } if rel else {
                 "id": None,
                 "status_realisasi": "belum",
@@ -858,7 +987,34 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
                 "bukti_link": None,
                 "updated_at": None,
                 "updated_by": None,
-            },
+                "dilaksanakan_pada_periode": False,
+            }
+        else:
+            belum_cnt += 1
+            # Realisasi tidak dilaksanakan pada periode ini
+            realisasi_payload = {
+                "id": rel.id if rel else None,
+                "status_realisasi": "belum",
+                "tanggal_realisasi": None,
+                "tanggal_mulai": None,
+                "tanggal_selesai": None,
+                "uraian_hasil": None,
+                "hambatan": None,
+                "bukti_berkas_id": None,
+                "bukti_nama": None,
+                "bukti_link": None,
+                "updated_at": None,
+                "updated_by": None,
+                "dilaksanakan_pada_periode": False,
+            }
+
+        items.append({
+            **r,
+            "source_type": "risiko",
+            "risiko_id": r["id"],
+            "rtp_cee_id": None,
+            "rtp": rt.model_dump() if rt else None,
+            "realisasi": realisasi_payload,
             "treated": {
                 "id": tr.id if tr else None,
                 "dampak_treated": tr.dampak_treated if tr else None,
@@ -866,7 +1022,7 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
                 "skala_treated": tr.skala_treated if tr else None,
                 "level_treated": an.level_risiko(tr.skala_treated) if tr and tr.skala_treated else None,
             } if tr else None,
-            "events": [e.model_dump() for e in events_map.get(r["id"], [])],
+            "events": [e.model_dump() for e in matching_events],
         })
 
     # 2. RTP atas CEE (Form 6)
@@ -882,7 +1038,6 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
     cee_rel_map = {rel.rtp_cee_id: rel for rel in cee_realisasi}
 
     for c in cee_rows:
-        total_rtp += 1
         rel = cee_rel_map.get(c.id)
 
         tgl_rel = rel.tanggal_realisasi.isoformat() if rel and rel.tanggal_realisasi else None
@@ -897,13 +1052,74 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
             tgl_selesai = parts[1].strip()
             tgl_rel = str(c.realisasi_waktu).strip()
 
-        status_realisasi = rel.status_realisasi if rel and rel.status_realisasi else ("selesai" if tgl_rel else "belum")
-        if status_realisasi == "selesai":
-            selesai_cnt += 1
-        elif status_realisasi == "proses":
-            proses_cnt += 1
+        raw_status = rel.status_realisasi if rel and rel.status_realisasi else ("selesai" if tgl_rel else "belum")
+
+        d_start, d_end = parse_date_range(rel, c)
+        is_realisasi_in_periode = False
+        if raw_status in ("selesai", "proses"):
+            if is_date_range_overlap(d_start, d_end, q_start, q_end):
+                is_realisasi_in_periode = True
+            elif not d_start and not d_end:
+                tr_text = f"{tgl_rel or ''} {getattr(c, 'realisasi_waktu', '') or ''}".lower()
+                if is_tw:
+                    if ("tw1" in p_clean or "1" in p_clean or "i" in p_clean) and any(k in tr_text for k in ("tw1", "tw 1", "triwulan 1", "triwulan i")):
+                        is_realisasi_in_periode = True
+                    elif ("tw2" in p_clean or "2" in p_clean or "ii" in p_clean) and any(k in tr_text for k in ("tw2", "tw 2", "triwulan 2", "triwulan ii")):
+                        is_realisasi_in_periode = True
+                    elif ("tw3" in p_clean or "3" in p_clean or "iii" in p_clean) and any(k in tr_text for k in ("tw3", "tw 3", "triwulan 3", "triwulan iii")):
+                        is_realisasi_in_periode = True
+                    elif ("tw4" in p_clean or "4" in p_clean or "iv" in p_clean) and any(k in tr_text for k in ("tw4", "tw 4", "triwulan 4", "triwulan iv")):
+                        is_realisasi_in_periode = True
+                else:
+                    is_realisasi_in_periode = True
+
+        if has_period_filter and not include_all:
+            if not is_realisasi_in_periode:
+                continue
+
+        total_rtp += 1
+
+        if is_realisasi_in_periode:
+            status_realisasi = raw_status
+            if status_realisasi == "selesai":
+                selesai_cnt += 1
+            elif status_realisasi == "proses":
+                proses_cnt += 1
+            else:
+                belum_cnt += 1
+
+            cee_real_payload = {
+                "id": rel.id if rel else None,
+                "status_realisasi": status_realisasi,
+                "tanggal_realisasi": tgl_rel,
+                "tanggal_mulai": tgl_mulai,
+                "tanggal_selesai": tgl_selesai,
+                "uraian_hasil": rel.uraian_hasil if rel else None,
+                "hambatan": rel.hambatan if rel else None,
+                "bukti_berkas_id": rel.bukti_berkas_id if rel else None,
+                "bukti_nama": rel.bukti_nama if rel else None,
+                "bukti_link": rel.bukti_link if rel else (c.realisasi_waktu if c.realisasi_waktu and str(c.realisasi_waktu).startswith("http") else None),
+                "updated_at": rel.updated_at.isoformat() if rel and rel.updated_at else None,
+                "updated_by": rel.updated_by if rel else None,
+                "dilaksanakan_pada_periode": True,
+            }
         else:
             belum_cnt += 1
+            cee_real_payload = {
+                "id": rel.id if rel else None,
+                "status_realisasi": "belum",
+                "tanggal_realisasi": None,
+                "tanggal_mulai": None,
+                "tanggal_selesai": None,
+                "uraian_hasil": None,
+                "hambatan": None,
+                "bukti_berkas_id": None,
+                "bukti_nama": None,
+                "bukti_link": None,
+                "updated_at": None,
+                "updated_by": None,
+                "dilaksanakan_pada_periode": False,
+            }
 
         items.append({
             "id": f"cee-{c.id}",
@@ -931,21 +1147,9 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
                 "aspek_cee": c.aspek_cee,
                 "kondisi_kerentanan": c.kondisi_kerentanan,
             },
-            "realisasi": {
-                "id": rel.id if rel else None,
-                "status_realisasi": status_realisasi,
-                "tanggal_realisasi": tgl_rel,
-                "tanggal_mulai": tgl_mulai,
-                "tanggal_selesai": tgl_selesai,
-                "uraian_hasil": rel.uraian_hasil if rel else None,
-                "hambatan": rel.hambatan if rel else None,
-                "bukti_berkas_id": rel.bukti_berkas_id if rel else None,
-                "bukti_nama": rel.bukti_nama if rel else None,
-                "bukti_link": rel.bukti_link if rel else (c.realisasi_waktu if c.realisasi_waktu and str(c.realisasi_waktu).startswith("http") else None),
-                "updated_at": rel.updated_at.isoformat() if rel and rel.updated_at else None,
-                "updated_by": rel.updated_by if rel else None,
-            },
+            "realisasi": cee_real_payload,
             "treated": None,
+            "events": [],
         })
 
     persen_selesai = round((selesai_cnt / total_rtp * 100), 1) if total_rtp > 0 else 0
@@ -958,7 +1162,10 @@ def list_realisasi(opd_id: int, tahun: int, session: Session = Depends(get_sessi
             "proses": proses_cnt,
             "belum": belum_cnt,
             "persen_selesai": persen_selesai,
+            "total_kejadian": sum(len(it.get("events", [])) for it in items),
         },
+        "periode": periode or "tahunan",
+        "periode_label": p_label,
     }
 
 

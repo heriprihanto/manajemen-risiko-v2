@@ -1,9 +1,12 @@
 """Ringkasan eksekutif dashboard per OPD & tahun."""
+import re
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, func, select
 
+from app.core.datetime_utils import today_wib
 from app.db import get_session
 from app.models import (
     AnalisisRisiko,
@@ -12,8 +15,10 @@ from app.models import (
     KonteksOperasionalOpd,
     KonteksStrategisOpd,
     MonitoringPi,
+    RealisasiRtp,
     RefBidangUrusan,
     Risiko,
+    RtpCee,
     RtpRisiko,
 )
 from app.services import analisis as an
@@ -25,7 +30,77 @@ JENIS_LABEL = {
     "strategis_pemda": "Strategis Pemda (Form 3.a)",
     "strategis_opd": "Strategis OPD (Form 3.b)",
     "operasional_opd": "Operasional OPD (Form 3.c)",
+    "cee": "RTP atas CEE",
 }
+
+
+def parse_deadline(target_selesai: Any, target_mulai: Any, target_waktu: Any, tahun_default: int) -> date | None:
+    """Menguraikan batas akhir tanggal jatuh tempo RTP dari kolom tanggal atau teks target waktu."""
+    if target_selesai:
+        return target_selesai if isinstance(target_selesai, date) else date.fromisoformat(str(target_selesai)[:10])
+    if target_mulai:
+        return target_mulai if isinstance(target_mulai, date) else date.fromisoformat(str(target_mulai)[:10])
+    if not target_waktu:
+        return None
+
+    tw = str(target_waktu).strip()
+
+    # 1. Cek format ISO YYYY-MM-DD
+    m_iso = re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", tw)
+    if m_iso:
+        return date(int(m_iso.group(1)), int(m_iso.group(2)), int(m_iso.group(3)))
+
+    # 2. Cek tahun dalam teks, jika tidak ada gunakan tahun_default
+    y_match = re.search(r"\b(202\d)\b", tw)
+    y = int(y_match.group(1)) if y_match else int(tahun_default)
+
+    tw_lower = tw.lower()
+
+    # Cek format tanggal Indonesia DD Bulan YYYY
+    m_id = re.search(r"(\d{1,2})\s+([a-zA-Z]+)(?:\s+\d{4})?", tw_lower)
+    month_names = {
+        "januari": (1, 31), "jan": (1, 31),
+        "februari": (2, 28), "feb": (2, 28),
+        "maret": (3, 31), "mar": (3, 31),
+        "april": (4, 30), "apr": (4, 30),
+        "mei": (5, 31),
+        "juni": (6, 30), "jun": (6, 30),
+        "juli": (7, 31), "jul": (7, 31),
+        "agustus": (8, 31), "agu": (8, 31), "agt": (8, 31),
+        "september": (9, 30), "sep": (9, 30),
+        "oktober": (10, 31), "okt": (10, 31),
+        "november": (11, 30), "nov": (11, 30),
+        "desember": (12, 31), "des": (12, 31),
+    }
+    if m_id:
+        d_val = int(m_id.group(1))
+        m_name = m_id.group(2)
+        if m_name in month_names:
+            m_val, max_d = month_names[m_name]
+            return date(y, m_val, min(d_val, max_d))
+
+    # Cek Semester
+    if re.search(r"\bsemester\s*(?:ii|2|kedua)\b", tw_lower):
+        return date(y, 12, 31)
+    if re.search(r"\bsemester\s*(?:i|1|pertama)\b", tw_lower):
+        return date(y, 6, 30)
+
+    # Cek Triwulan (jika ada rentang 'triwulan i - iv', ambil batas akhir tertinggi)
+    if re.search(r"(?:triwulan|tw)?\s*(?:-\s*|\bs\.d\.\s*|\bsampai\s*)?(?:triwulan|tw)?\s*(?:iv|4|keempat)\b", tw_lower):
+        return date(y, 12, 31)
+    if re.search(r"(?:triwulan|tw)?\s*(?:-\s*|\bs\.d\.\s*|\bsampai\s*)?(?:triwulan|tw)?\s*(?:iii|3|ketiga)\b", tw_lower):
+        return date(y, 9, 30)
+    if re.search(r"(?:triwulan|tw)?\s*(?:-\s*|\bs\.d\.\s*|\bsampai\s*)?(?:triwulan|tw)?\s*(?:ii|2|kedua)\b", tw_lower):
+        return date(y, 6, 30)
+    if re.search(r"(?:triwulan|tw)?\s*(?:i|1|pertama)\b", tw_lower):
+        return date(y, 3, 31)
+
+    # Cek nama bulan standalone (e.g. 'November 2026')
+    for m_k, (m_val, max_d) in month_names.items():
+        if re.search(rf"\b{m_k}\b", tw_lower):
+            return date(y, m_val, max_d)
+
+    return date(y, 12, 31)
 
 
 @router.get("/summary")
@@ -212,8 +287,132 @@ def summary(opd_id: int, tahun: int, session: Session = Depends(get_session)):
         )
     ).one()
 
-    # 8. Rekomendasi Eksekutif (Smart Engine)
+    # 8. Peringatan Jatuh Tempo RTP (Akan Jatuh Tempo <= 30 hari & Lewat Jatuh Tempo)
+    today = today_wib()
+    items_akan_jatuh_tempo = []
+    items_lewat_jatuh_tempo = []
+
+    # Ambil status realisasi Form 7
+    saved_realisasi = session.exec(
+        select(RealisasiRtp).where(RealisasiRtp.risiko_id.in_(ids))
+    ).all() if ids else []
+    rel_map = {rel.risiko_id: rel for rel in saved_realisasi}
+
+    for r in risiko:
+        rt = rtp_map.get(r.id)
+        if not rt or not (rt.rencana_tindak or "").strip():
+            continue
+
+        rel = rel_map.get(r.id)
+        if rel and rel.status_realisasi == "selesai":
+            # RTP sudah selesai dilaksanakan
+            continue
+
+        deadline = parse_deadline(rt.target_selesai, rt.target_mulai, rt.target_waktu, tahun)
+        if not deadline:
+            continue
+
+        days_diff = (deadline - today).days
+
+        item = {
+            "id": r.id,
+            "source_type": "risiko",
+            "kode_risiko": r.kode_risiko or f"R-{r.id}",
+            "uraian_risiko": r.uraian_risiko,
+            "rencana_tindak": rt.rencana_tindak,
+            "penanggung_jawab": rt.pemilik_penanggung_jawab or r.pemilik_risiko or "OPD",
+            "target_waktu": rt.target_waktu or deadline.strftime("%d-%m-%Y"),
+            "jatuh_tempo": deadline.isoformat(),
+            "sisa_hari": days_diff,
+            "status_realisasi": rel.status_realisasi if rel else "belum",
+            "jenis_risiko": r.jenis_risiko,
+            "jenis_label": JENIS_LABEL.get(r.jenis_risiko, r.jenis_risiko),
+            "link": "/realisasi-rtp",
+        }
+
+        if days_diff < 0:
+            items_lewat_jatuh_tempo.append(item)
+        elif 0 <= days_diff <= 30:
+            items_akan_jatuh_tempo.append(item)
+
+    # Ambil status realisasi Form 6 (CEE)
+    cee_rows = session.exec(
+        select(RtpCee).where(RtpCee.opd_id == opd_id, RtpCee.tahun == tahun)
+    ).all()
+    cee_ids = [c.id for c in cee_rows]
+    cee_real_records = session.exec(
+        select(RealisasiRtp).where(RealisasiRtp.rtp_cee_id.in_(cee_ids))
+    ).all() if cee_ids else []
+    cee_rel_map = {rel.rtp_cee_id: rel for rel in cee_real_records}
+
+    for c in cee_rows:
+        if not (c.rencana_tindak or "").strip():
+            continue
+
+        rel = cee_rel_map.get(c.id)
+        if rel and rel.status_realisasi == "selesai":
+            continue
+
+        deadline = parse_deadline(c.target_selesai, c.target_mulai, c.target_waktu, tahun)
+        if not deadline:
+            continue
+
+        days_diff = (deadline - today).days
+
+        item = {
+            "id": f"cee-{c.id}",
+            "source_type": "cee",
+            "kode_risiko": f"CEE-{c.no_urut or c.id}",
+            "uraian_risiko": c.kondisi_kerentanan or "Kelemahan Lingkungan Pengendalian",
+            "rencana_tindak": c.rencana_tindak,
+            "penanggung_jawab": c.pemilik_penanggung_jawab or "Pimpinan OPD",
+            "target_waktu": c.target_waktu or deadline.strftime("%d-%m-%Y"),
+            "jatuh_tempo": deadline.isoformat(),
+            "sisa_hari": days_diff,
+            "status_realisasi": rel.status_realisasi if rel else "belum",
+            "jenis_risiko": "cee",
+            "jenis_label": "RTP atas CEE",
+            "link": "/realisasi-rtp",
+        }
+
+        if days_diff < 0:
+            items_lewat_jatuh_tempo.append(item)
+        elif 0 <= days_diff <= 30:
+            items_akan_jatuh_tempo.append(item)
+
+    items_lewat_jatuh_tempo.sort(key=lambda x: x["sisa_hari"])
+    items_akan_jatuh_tempo.sort(key=lambda x: x["sisa_hari"])
+
+    # 9. Rekomendasi Eksekutif (Smart Engine)
     rekomendasi = []
+
+    # Peringatan Jatuh Tempo Prioritas Utama di Rekomendasi
+    if items_lewat_jatuh_tempo:
+        rekomendasi.append(
+            {
+                "severity": "kritis",
+                "judul": f"{len(items_lewat_jatuh_tempo)} RTP Sudah Lewat Jatuh Tempo",
+                "pesan": (
+                    f"Terdapat {len(items_lewat_jatuh_tempo)} rencana tindak pengendalian yang telah melewati "
+                    f"tenggat waktu target penyelesaian dan belum selesai terealisasi. Segera tindak lanjuti."
+                ),
+                "action_label": "Realisasi RTP",
+                "action_link": "/realisasi-rtp",
+            }
+        )
+    if items_akan_jatuh_tempo:
+        rekomendasi.append(
+            {
+                "severity": "perhatian",
+                "judul": f"{len(items_akan_jatuh_tempo)} RTP Akan Jatuh Tempo dalam 30 Hari",
+                "pesan": (
+                    f"Terdapat {len(items_akan_jatuh_tempo)} rencana tindak pengendalian yang mendekati "
+                    f"batas waktu pelaksanaan dalam 30 hari ke depan. Pastikan aksi mitigasi segera dirampungkan."
+                ),
+                "action_label": "Realisasi RTP",
+                "action_link": "/realisasi-rtp",
+            }
+        )
 
     # Rekomendasi 1: RTP Prioritas
     if prioritas_tanpa_rtp > 0:
@@ -430,4 +629,10 @@ def summary(opd_id: int, tahun: int, session: Session = Depends(get_session)):
         "top_prioritas": top_prioritas,
         "rekomendasi": rekomendasi,
         "tahapan_progress": tahapan_progress,
+        "peringatan_rtp": {
+            "akan_jatuh_tempo": items_akan_jatuh_tempo,
+            "lewat_jatuh_tempo": items_lewat_jatuh_tempo,
+            "total_akan_jatuh_tempo": len(items_akan_jatuh_tempo),
+            "total_lewat_jatuh_tempo": len(items_lewat_jatuh_tempo),
+        },
     }

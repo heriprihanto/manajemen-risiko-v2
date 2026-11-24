@@ -6,6 +6,15 @@ const props = defineProps({
   data: { type: Array, default: () => [] },
   opdName: { type: String, default: '-' },
   tahun: [Number, String],
+  periode: { type: String, default: 'tahunan' },
+  periodeLabel: { type: String, default: 'Tahunan' },
+})
+
+const periodeSubtitle = computed(() => {
+  if (props.periode && props.periode !== 'tahunan') {
+    return `PERIODE ${props.periodeLabel.toUpperCase()} TAHUN ${props.tahun}`
+  }
+  return `TAHUN ${props.tahun}`
 })
 
 const ORDER = ['strategis_pemda', 'strategis_opd', 'operasional_opd']
@@ -83,7 +92,7 @@ function parseEvidenceList(buktiLink, buktiNama) {
   <section class="report-section">
     <div class="report-formno">Monev RTP</div>
     <div class="report-title">MONITORING DAN EVALUASI RENCANA TINDAK PENGENDALIAN RISIKO</div>
-    <div class="report-subtitle">{{ opdName.toUpperCase() }} TAHUN {{ tahun }}</div>
+    <div class="report-subtitle">{{ opdName.toUpperCase() }} {{ periodeSubtitle }}</div>
 
     <table class="rpt">
       <thead>
@@ -126,12 +135,17 @@ function parseEvidenceList(buktiLink, buktiNama) {
 
             <!-- 5. Realisasi Pelaksanaan RTP -->
             <td class="c">
-              {{ formatRealisasiDate(r.realisasi) || r.rtp?.realisasi_waktu || r.realisasi_waktu || '—' }}
+              <span v-if="r.realisasi?.dilaksanakan_pada_periode === false" class="text-slate-400 italic">
+                —
+              </span>
+              <span v-else>
+                {{ formatRealisasiDate(r.realisasi) || r.rtp?.realisasi_waktu || r.realisasi_waktu || '—' }}
+              </span>
             </td>
 
             <!-- 6. Bukti Dokumen -->
             <td>
-              <template v-if="parseEvidenceList(r.realisasi?.bukti_link, r.realisasi?.bukti_nama).length">
+              <template v-if="r.realisasi?.dilaksanakan_pada_periode !== false && parseEvidenceList(r.realisasi?.bukti_link, r.realisasi?.bukti_nama).length">
                 <div
                   v-for="(ev, bIdx) in parseEvidenceList(r.realisasi?.bukti_link, r.realisasi?.bukti_nama)"
                   :key="bIdx"
@@ -176,7 +190,14 @@ function parseEvidenceList(buktiLink, buktiNama) {
         </template>
 
         <tr v-if="!groups.length">
-          <td colspan="7" class="c">Belum ada data rencana tindak pengendalian risiko</td>
+          <td colspan="7" class="c py-6 text-slate-500">
+            <template v-if="periode && periode !== 'tahunan'">
+              Tidak ada Realisasi RTP yang dilaksanakan maupun Kejadian risiko pada {{ periodeLabel }} Tahun {{ tahun }}.
+            </template>
+            <template v-else>
+              Belum ada data Realisasi RTP yang dilaksanakan maupun Kejadian risiko pada Tahun {{ tahun }}.
+            </template>
+          </td>
         </tr>
       </tbody>
     </table>

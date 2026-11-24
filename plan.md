@@ -564,3 +564,12 @@ header judul  seperti pada halaman Realisasi Rencana Tindak Pengendalian (RTP)
 
 Cek Semua Halaman
 Pastikan konsistensi margin dan posisi objek
+
+Laporan Monitoring & Evaluasi RTP
+- Buat Per Triwulan dan Tahunan
+- Laporan Triwulanan Hanya menampilkan Realisasi RTP  yang dilaksanakan dan Kejadian pada triwulan tersebut
+- Laporan Tahunan menampilkan semua Realisasi RTP yang dilaksanakan dan kejadian pada tahun tersebut
+
+Halaman Beranda
+- Tampilkan Informasi Peringatan Rencana Tindak Pengendalian (RTP) Yang Akan Jatuh Tempo dalam 30 hari kedepan
+- Tampilkan Informasi Peringatan Rencana Tindak Pengendalian (RTP) Yang Sudah Lewat Jatuh Tempo
